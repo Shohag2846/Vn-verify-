@@ -1,7 +1,17 @@
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+
+// Robust polyfill for process.env in the browser
+const globalAny = window as any;
+if (!globalAny.process) {
+  globalAny.process = { env: {} };
+}
+if (!globalAny.process.env) {
+  globalAny.process.env = {};
+}
+// Ensure API_KEY exists to prevent the SDK from crashing during initialization
+globalAny.process.env.API_KEY = globalAny.process.env.API_KEY || '';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

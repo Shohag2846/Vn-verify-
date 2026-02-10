@@ -1,8 +1,5 @@
-
 import React, { useState } from 'react';
-/* Fix: Separate react-router-dom and react-router imports to resolve export errors in specific environments */
-import { HashRouter, Link } from 'react-router-dom';
-import { Routes, Route } from 'react-router';
+import { HashRouter, Routes, Route, Link } from 'react-router-dom';
 import Header from './components/Header';
 import InfoBar from './components/InfoBar';
 import Navbar from './components/Navbar';
@@ -14,7 +11,6 @@ import PrimeMinister from './pages/PrimeMinister';
 import WorkPermit from './pages/WorkPermit';
 import Visa from './pages/Visa';
 import TRC from './pages/TRC';
-import VerificationPage from './pages/VerificationPage';
 import Support from './pages/Support';
 import News from './pages/News';
 import Resources from './pages/Resources';

@@ -1,8 +1,5 @@
-
 import React from 'react';
-/* Fix: Separate DOM-specific components from core hooks which might be in react-router */
-import { Link } from 'react-router-dom';
-import { useLocation } from 'react-router';
+import { Link, useLocation } from 'react-router-dom';
 import { translations } from '../i18n';
 import { Language } from '../types';
 
