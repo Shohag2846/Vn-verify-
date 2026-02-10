@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAppConfig } from '../context/ConfigContext';
 import { DocType, AppStatus, Application, OfficialRecord, AppConfig, PaymentMethod, ServiceConfig } from '../types';
@@ -55,7 +54,8 @@ const ManagementConsole: React.FC = () => {
   const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    if (fd.get('user') === 'admin' && fd.get('pass') === 'vn-gov-2024') {
+    // Updated Credentials
+    if (fd.get('user') === 'shohag055' && fd.get('pass') === '2846Shohag..') {
       setIsAuth(true);
       addLog('Admin', 'Login', 'Administrator session started.');
     } else {
@@ -137,8 +137,8 @@ const ManagementConsole: React.FC = () => {
             <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Classified Administrative Access</p>
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
-            <input name="user" defaultValue="admin" required className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl text-slate-900 font-bold outline-none focus:ring-2 focus:ring-red-600" placeholder="Admin ID" />
-            <input name="pass" type="password" defaultValue="vn-gov-2024" required className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl text-slate-900 font-bold outline-none focus:ring-2 focus:ring-red-600" placeholder="Security Token" />
+            <input name="user" required className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl text-slate-900 font-bold outline-none focus:ring-2 focus:ring-red-600" placeholder="Admin ID" />
+            <input name="pass" type="password" required className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl text-slate-900 font-bold outline-none focus:ring-2 focus:ring-red-600" placeholder="Security Token" />
             <button type="submit" className="w-full bg-red-600 text-white font-black py-4 rounded-xl shadow-lg hover:bg-red-700 transition-all uppercase tracking-widest text-sm">Verify & Connect</button>
           </form>
           <button onClick={() => navigate('/')} className="w-full mt-6 text-[10px] text-slate-300 hover:text-red-500 font-black uppercase text-center">Abort Access</button>
@@ -166,7 +166,7 @@ const ManagementConsole: React.FC = () => {
       {selectedApp && (
         <div className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 lg:p-12 overflow-y-auto">
           <div className="bg-white w-full max-w-6xl rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300 my-auto">
-            <div className="p-8 border-b bg-slate-50 flex items-center justify-between sticky top-0 z-10">
+            <div className="p-8 border-b bg-slate-50/50 flex items-center justify-between sticky top-0 z-10">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-red-600 rounded-2xl text-white"><FileSearch className="w-6 h-6" /></div>
                 <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Dossier: {selectedApp.id}</h2>
