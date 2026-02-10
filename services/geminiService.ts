@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { DocType, VerificationResult } from "../types";
 
@@ -6,7 +7,8 @@ export async function simulateVerification(
   passport: string,
   email: string
 ): Promise<VerificationResult> {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  // Always use {apiKey: process.env.API_KEY} as per guidelines
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   try {
     const response = await ai.models.generateContent({

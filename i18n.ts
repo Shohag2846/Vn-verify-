@@ -21,7 +21,7 @@ export const translations: Translation = {
   domain: { en: 'Vietnam.gov.vn', vi: 'Vietnam.gov.vn' },
   subHeader: { en: 'Vietnamese & Working', vi: 'Người Việt & Công việc' },
 
-  // New Labels
+  // Form Labels
   applyNowBtn: { en: 'Apply Now', vi: 'Đăng ký ngay' },
   passportInfo: { en: 'Passport Information', vi: 'Thông tin Hộ chiếu' },
   visaInfo: { en: 'Visa Information', vi: 'Thông tin Thị thực' },
@@ -35,8 +35,7 @@ export const translations: Translation = {
   passportUpload: { en: 'Passport Scan', vi: 'Bản quét Hộ chiếu' },
   visaUpload: { en: 'Visa Scan', vi: 'Bản quét Thị thực' },
   trcUpload: { en: 'TRC Scan', vi: 'Bản quét TRC' },
-  age: { en: 'Age', vi: 'Tuổi' },
-  passportExpiry: { en: 'Passport Validity (Expiry)', vi: 'Thời hạn hộ chiếu (Hết hạn)' },
+  passportExpiry: { en: 'Passport Validity', vi: 'Thời hạn hộ chiếu' },
   trcTypeLabel: { en: 'TRC Type', vi: 'Loại thẻ tạm trú' },
   visaInfoLabel: { en: 'Visa Details', vi: 'Thông tin thị thực' },
 
@@ -45,36 +44,78 @@ export const translations: Translation = {
   emailLabel: { en: 'Email Address', vi: 'Địa chỉ Email' },
   verifyBtn: { en: 'Check / Verify', vi: 'Kiểm tra / Xác minh' },
   verifying: { en: 'Verifying...', vi: 'Đang xác minh...' },
-  fullName: { en: 'Full Name (as per passport)', vi: 'Họ và tên (theo hộ chiếu)' },
+  fullName: { en: 'Full Name', vi: 'Họ và tên' },
   nationality: { en: 'Nationality', vi: 'Quốc tịch' },
   dob: { en: 'Date of Birth', vi: 'Ngày sinh' },
   phone: { en: 'Phone Number', vi: 'Số điện thoại' },
-  uploadDocs: { en: 'Upload documents (PDF / JPG / PNG)', vi: 'Tải lên tài liệu (PDF / JPG / PNG)' },
-  declarationAgree: { en: 'I provide true information and agree to comply with laws.', vi: 'Tôi cung cấp thông tin đúng và đồng ý tuân thủ pháp luật.' },
+  uploadDocs: { en: 'Upload documents', vi: 'Tải lên tài liệu' },
+  declarationAgree: { en: 'I agree to comply with laws.', vi: 'Tôi đồng ý tuân thủ pháp luật.' },
   submitApp: { en: 'Submit Application', vi: 'Nộp hồ sơ' },
   applicantName: { en: 'Applicant Name', vi: 'Tên người nộp đơn' },
   appStatus: { en: 'Application Status', vi: 'Trạng thái hồ sơ' },
   submissionDate: { en: 'Submission Date', vi: 'Ngày nộp' },
   remarks: { en: 'Remarks', vi: 'Ghi chú' },
   downloadDocs: { en: 'Download Official Documents', vi: 'Tải xuống tài liệu chính thức' },
-  paymentReceipt: { en: 'Payment Receipt (PDF)', vi: 'Biên lai thanh toán (PDF)' },
 
-  // Work Permit Specific
+  // TRC Specific Info
+  trcIntro: { en: 'A Temporary Residence Card (TRC) is an official document issued by the Vietnam Immigration Department that allows foreign nationals to legally reside in Vietnam for a fixed period of time without the need to frequently renew a visa.', vi: 'Thẻ tạm trú (TRC) là văn bản chính thức do Cục Quản lý xuất nhập cảnh cấp cho người nước ngoài được phép cư trú có thời hạn tại Việt Nam và có giá trị thay thị thực.' },
+  trcRules: { en: 'Rules & Conditions', vi: 'Quy định & Điều kiện' },
+  trcRulesText: { en: 'Valid passport required, valid visa category (Work, Investor, or Family), Sponsorship from a registered Vietnamese entity, and compliance with local laws.', vi: 'Hộ chiếu còn hạn, có thị thực phù hợp (LD, DT, TT), có cơ quan tổ chức bảo lãnh và tuân thủ pháp luật Việt Nam.' },
+  trcDuration: { en: 'Duration', vi: 'Thời hạn' },
+  trcDurationText: { en: 'TRC cards are usually issued for 1, 2, 3 years, or up to 5 years for special cases (Investors or senior experts).', vi: 'Thẻ TRC thường được cấp với thời hạn 1, 2, 3 năm hoặc tối đa 5 năm cho các trường hợp đặc biệt.' },
+  trcFees: { en: 'Fees', vi: 'Lệ phí' },
+  trcFeesText: { en: 'Government fees range from USD 80 to USD 200 depending on duration. Additional service fees may apply.', vi: 'Lệ phí nhà nước từ 80 USD đến 200 USD tùy thời hạn. Phí dịch vụ có thể phát sinh thêm.' },
+  trcWhy: { en: 'Why is a TRC Card Needed?', vi: 'Tại sao cần Thẻ tạm trú?' },
+  trcWhyText: { en: 'Live and work legally long-term, multi-entry authorization, avoid frequent visa renewals, open bank accounts easily.', vi: 'Cư trú và làm việc lâu dài, xuất nhập cảnh nhiều lần, không cần gia hạn visa thường xuyên, thuận tiện mở tài khoản ngân hàng.' },
+  trcLegal: { en: 'Legal Importance', vi: 'Giá trị pháp lý' },
+  trcLegalText: { en: 'The TRC card is a legally recognized residence document under Vietnamese immigration law and serves as proof of lawful stay.', vi: 'Thẻ TRC là giấy tờ cư trú hợp pháp theo luật xuất nhập cảnh Việt Nam, minh chứng cho việc cư trú đúng quy định.' },
+
+  // Visa Specific Info
+  visaIntro: { en: 'A Vietnam Visa is an official authorization issued by the Vietnam Immigration Department that allows foreign nationals to enter, stay, and travel within Vietnam for a specific purpose and period of time.', vi: 'Thị thực Việt Nam (Visa) là giấy phép chính thức do Cục Quản lý xuất nhập cảnh cấp cho phép người nước ngoài nhập cảnh và lưu trú tại Việt Nam theo mục đích và thời hạn quy định.' },
+  visaTypes: { en: 'Types of Vietnam Visa', vi: 'Các loại thị thực' },
+  visaTypesText: { en: 'Tourist (DL), Business (DN), Work (LD), Investor (DT), Family (TT). Each type serves a specific entry purpose.', vi: 'Du lịch (DL), Thương mại (DN), Lao động (LD), Đầu tư (DT), Thăm thân (TT). Mỗi loại phù hợp với một mục đích nhập cảnh cụ thể.' },
+  visaRules: { en: 'Rules & Conditions', vi: 'Quy định & Điều kiện' },
+  visaRulesText: { en: 'Valid passport (min 6 months), purpose must match visa type, compliance with immigration laws, and avoiding misuse or overstay.', vi: 'Hộ chiếu còn hạn ít nhất 6 tháng, mục đích nhập cảnh phải khớp với loại visa, tuân thủ luật pháp và không cư trú quá hạn.' },
+  visaDuration: { en: 'Duration', vi: 'Thời hạn' },
+  visaDurationText: { en: 'Common durations: 1 month, 3 months, 6 months or 1 year for business/investor. Available as Single or Multiple-entry.', vi: 'Thời hạn phổ biến: 1 tháng, 3 tháng, 6 tháng hoặc 1 năm cho doanh nghiệp/đầu tư. Có loại nhập cảnh 1 lần hoặc nhiều lần.' },
+  visaFees: { en: 'Fees', vi: 'Lệ phí' },
+  visaFeesText: { en: 'Tourist: USD 25–50, Business/Work: USD 50–150. Multiple-entry and agency processing fees may vary.', vi: 'Du lịch: 25–50 USD, Thương mại/Lao động: 50–150 USD. Phí nhập cảnh nhiều lần và phí dịch vụ có thể thay đổi.' },
+  visaWhy: { en: 'Why is a Visa Needed?', vi: 'Tại sao cần Thị thực?' },
+  visaWhyText: { en: 'To enter legally, work or invest lawfully, and potentially apply for a TRC in the future.', vi: 'Để nhập cảnh hợp pháp, làm việc, đầu tư và là cơ sở để xin cấp Thẻ tạm trú (TRC) trong tương lai.' },
+  visaLegal: { en: 'Legal Importance', vi: 'Giá trị pháp lý' },
+  visaLegalText: { en: 'A Vietnam visa is a mandatory legal document under Vietnam immigration law and must be valid throughout the stay period.', vi: 'Thị thực là giấy tờ pháp lý bắt buộc và phải có hiệu lực trong suốt thời gian lưu trú tại Việt Nam.' },
+
+  // Work Permit Specific Info
+  wpIntro: { en: 'A Vietnam Work Permit is an official legal document issued by the Vietnamese authorities that allows foreign nationals to work legally in Vietnam for a specific employer and position.', vi: 'Giấy phép lao động Việt Nam là văn bản pháp lý chính thức do cơ quan có thẩm quyền cấp, cho phép người nước ngoài làm việc hợp pháp tại Việt Nam cho một đơn vị sử dụng lao động và vị trí cụ thể.' },
+  wpWho: { en: 'Who Needs a Work Permit?', vi: 'Ai cần Giấy phép lao động?' },
+  wpWhoText: { en: 'Foreign nationals must apply for a work permit if they are employed by a Vietnamese company; work as managers, experts, or technical specialists; or stay and work in Vietnam for more than 3 months. Some categories may be exempt under Vietnamese law.', vi: 'Người nước ngoài làm việc cho doanh nghiệp Việt Nam, giữ chức vụ quản lý, chuyên gia hoặc kỹ thuật viên lưu trú trên 3 tháng phải xin cấp phép. Một số trường hợp có thể được miễn theo quy định.' },
+  wpRules: { en: 'Rules & Conditions', vi: 'Quy định & Điều kiện' },
+  wpRulesText: { en: 'Valid passport (minimum 6 months validity); Job position must match the approved work permit role; Sponsorship from a licensed Vietnamese company; Relevant qualifications, experience, or certificates; Medical check-up and police clearance (if required); Compliance with Vietnamese labor and immigration laws.', vi: 'Hộ chiếu còn hạn 6 tháng; Vị trí công việc khớp với hồ sơ; Có đơn vị bảo lãnh; Đủ bằng cấp, kinh nghiệm; Khám sức khỏe và lý lịch tư pháp; Tuân thủ luật pháp Việt Nam.' },
+  wpDuration: { en: 'Duration', vi: 'Thời hạn' },
+  wpDurationText: { en: 'Work permits are usually issued for up to 1 years. Renewable once, depending on regulations. Validity depends on labor contract and company approval.', vi: 'Thường được cấp tối đa 1 năm. Có thể gia hạn một lần tùy theo hợp đồng lao động và quy định hiện hành.' },
+  wpFees: { en: 'Fees', vi: 'Lệ phí' },
+  wpFeesText: { en: 'Government fees vary by location and processing time. Approximate cost ranges from USD 100 – 300. Additional service or agency fees may apply.', vi: 'Lệ phí nhà nước thay đổi theo địa phương, khoảng 100 – 300 USD. Phí dịch vụ có thể phát sinh thêm.' },
+  wpWhy: { en: 'Why is a Work Permit Needed?', vi: 'Tại sao cần Giấy phép lao động?' },
+  wpWhyText: { en: 'A work permit is required to: Work legally in Vietnam; Apply for a Work Visa (LD); Apply for a Temporary Residence Card (TRC); Avoid legal penalties, fines, or deportation.', vi: 'Để làm việc hợp pháp, xin thị thực lao động (LD) hoặc thẻ TRC, và tránh các hình phạt pháp lý hoặc trục xuất.' },
+  wpLegal: { en: 'Legal Importance', vi: 'Giá trị pháp lý' },
+  wpLegalText: { en: 'The Vietnam Work Permit is a mandatory document under Vietnamese labor law and serves as proof of legal employment for foreign workers.', vi: 'Giấy phép lao động là văn bản bắt buộc và là bằng chứng về việc làm hợp pháp theo luật lao động Việt Nam.' },
+
+  // Work Permit Labels
   wpVerifyTitle: { en: 'Work Permit Verification', vi: 'Xác minh Giấy phép lao động' },
   wpVerifyInstruction: { en: 'Enter details to verify your work authorization status.', vi: 'Nhập chi tiết để xác minh tình trạng cấp phép lao động của bạn.' },
   wpApplyTitle: { en: 'Apply for New Work Permit', vi: 'Đăng ký Giấy phép lao động mới' },
   wpEmployer: { en: 'Employer Name', vi: 'Tên người sử dụng lao động' },
   wpPosition: { en: 'Job Title', vi: 'Chức danh công việc' },
 
-  // Visa Specific
+  // Visa Labels
   visaStatusCheck: { en: 'Visa Status Inquiry', vi: 'Tra cứu trạng thái thị thực' },
   visaApplyNow: { en: 'Submit Electronic Visa Application', vi: 'Nộp hồ sơ thị thực điện tử' },
 
-  // TRC Specific
+  // TRC Labels
   trcStatusCheck: { en: 'TRC Verification', vi: 'Xác minh Thẻ tạm trú' },
   trcApplyNow: { en: 'Request Temporary Residence Card', vi: 'Yêu cầu cấp Thẻ tạm trú' },
 
-  // News Specific
+  // News Labels
   newsTitle: { en: 'National Portal News', vi: 'Tin tức Cổng thông tin Quốc gia' },
   newsSubtitle: { en: 'Updates on Policies and Administrative Reform', vi: 'Cập nhật về Chính sách và Cải cách Hành chính' },
   newsGov: { en: 'Government', vi: 'Chính phủ' },
@@ -85,28 +126,28 @@ export const translations: Translation = {
   newsAll: { en: 'All Categories', vi: 'Tất cả danh mục' },
   newsBack: { en: 'Back to News', vi: 'Quay lại tin tức' },
   newsReadMore: { en: 'Read Full Article', vi: 'Đọc toàn bộ bài viết' },
-  newsDisclaimer: { en: 'Information provided for reference. Official documents prevail.', vi: 'Thông tin cung cấp nhằm mục đích tham khảo. Văn bản chính thức có giá trị ưu tiên.' },
+  newsDisclaimer: { en: 'Official documents prevail.', vi: 'Văn bản chính thức có giá trị ưu tiên.' },
 
-  // Resources Specific
+  // Resources Labels
   resTitle: { en: 'Administrative Resources', vi: 'Tài nguyên Hành chính' },
-  resSubtitle: { en: 'Official Guides, Legal Documents, and Forms', vi: 'Hướng dẫn chính thức, Văn bản pháp luật và Biểu mẫu' },
-  resSearchPlaceholder: { en: 'Search resources...', vi: 'Tìm kiếm tài nguyên...' },
+  resSubtitle: { en: 'Official Guides and Forms', vi: 'Hướng dẫn và Biểu mẫu chính thức' },
+  resSearchPlaceholder: { en: 'Search Resources...', vi: 'Tìm kiếm tài nguyên...' },
   resAll: { en: 'All Resources', vi: 'Tất cả tài nguyên' },
   resImmigrationCat: { en: 'Immigration', vi: 'Xuất nhập cảnh' },
-  resLaborCat: { en: 'Labor & Employment', vi: 'Lao động & Việc làm' },
+  resLaborCat: { en: 'Labor', vi: 'Lao động' },
   resVisaTrcCat: { en: 'Visa & TRC', vi: 'Thị thực & TRC' },
-  resFormsCat: { en: 'Official Forms', vi: 'Biểu mẫu chính thức' },
+  resFormsCat: { en: 'Official Forms', vi: 'Biểu mẫu' },
   resLinksCat: { en: 'External Links', vi: 'Liên kết ngoài' },
   resTypePdf: { en: 'PDF Document', vi: 'Tài liệu PDF' },
-  resTypeLink: { en: 'External Portal', vi: 'Cổng thông tin ngoài' },
+  resTypeLink: { en: 'External Link', vi: 'Liên kết ngoài' },
   resTypeGuide: { en: 'Official Guide', vi: 'Hướng dẫn chính thức' },
-  resUpdated: { en: 'Updated', vi: 'Cập nhật' },
-  resOpenLink: { en: 'Open Portal', vi: 'Mở cổng thông tin' },
-  resDownload: { en: 'Download File', vi: 'Tải xuống tệp' },
-  resView: { en: 'View Details', vi: 'Xem chi tiết' },
-  resDisclaimer: { en: 'These resources are provided by official state agencies for public guidance.', vi: 'Các tài nguyên này được cung cấp bởi các cơ quan nhà nước chính thức để hướng dẫn công chúng.' },
+  resUpdated: { en: 'Last Updated', vi: 'Cập nhật cuối' },
+  resOpenLink: { en: 'Open Link', vi: 'Mở liên kết' },
+  resDownload: { en: 'Download', vi: 'Tải xuống' },
+  resView: { en: 'View Guide', vi: 'Xem hướng dẫn' },
+  resDisclaimer: { en: 'These resources are provided for official guidance only.', vi: 'Các tài nguyên này được cung cấp cho mục đích hướng dẫn chính thức.' },
 
-  // About Vietnam Specific
+  // About Vietnam Labels
   aboutCountryOverview: { en: 'Country Overview', vi: 'Tổng quan đất nước' },
   aboutPoliticalSystem: { en: 'Political System', vi: 'Hệ thống chính trị' },
   aboutLegalFramework: { en: 'Legal Framework', vi: 'Khung pháp lý' },
@@ -114,37 +155,37 @@ export const translations: Translation = {
   aboutCultureSociety: { en: 'Culture & Society', vi: 'Văn hóa & Xã hội' },
   aboutInternationalRelations: { en: 'International Relations', vi: 'Quan hệ quốc tế' },
 
-  // Government Specific
-  govtOverview: { en: 'Overview of the Government', vi: 'Tổng quan về Chính phủ' },
-  govtStructure: { en: 'Organizational Structure', vi: 'Cơ cấu tổ chức' },
-  govtResponsibilities: { en: 'Main Responsibilities', vi: 'Nhiệm vụ chính' },
+  // Government Labels
+  govtOverview: { en: 'Executive Overview', vi: 'Tổng quan hành pháp' },
+  govtStructure: { en: 'Administrative Structure', vi: 'Cơ cấu hành chính' },
+  govtResponsibilities: { en: 'Powers & Duties', vi: 'Nhiệm vụ & Quyền hạn' },
   govtLawEnforcement: { en: 'Law Enforcement', vi: 'Thực thi pháp luật' },
   govtServices: { en: 'Public Services', vi: 'Dịch vụ công' },
   govtTransparency: { en: 'Transparency', vi: 'Tính minh bạch' },
 
-  // Prime Minister Specific
+  // Prime Minister Labels
   pmName: { en: 'Pham Minh Chinh', vi: 'Phạm Minh Chính' },
   pmTitle: { en: 'Prime Minister of Vietnam', vi: 'Thủ tướng Chính phủ Việt Nam' },
-  pmAppointment: { en: 'April 5, 2021', vi: '05 tháng 04, 2021' },
-  pmStatus: { en: 'Active', vi: 'Đang đương nhiệm' },
-  pmOfficeTitle: { en: 'The Office of the Prime Minister', vi: 'Văn phòng Thủ tướng' },
-  pmElectionTitle: { en: 'Election & Appointment', vi: 'Bầu cử & Bổ nhiệm' },
-  pmPowersTitle: { en: 'Constitutional Powers', vi: 'Quyền hạn Hiến định' },
-  pmHistoryTitle: { en: 'Historical Significance', vi: 'Ý nghĩa lịch sử' },
-  pmInternationalTitle: { en: 'Global Engagement', vi: 'Giao lưu quốc tế' },
+  pmAppointment: { en: 'April 2021', vi: 'Tháng 4 năm 2021' },
+  pmStatus: { en: 'Active', vi: 'Đang tại chức' },
+  pmOfficeTitle: { en: 'Office of the Prime Minister', vi: 'Văn phòng Thủ tướng' },
+  pmElectionTitle: { en: 'Term & Appointment', vi: 'Nhiệm kỳ & Bổ nhiệm' },
+  pmPowersTitle: { en: 'Powers & Responsibilities', vi: 'Quyền hạn & Nhiệm vụ' },
+  pmHistoryTitle: { en: 'Historical Background', vi: 'Bối cảnh lịch sử' },
+  pmInternationalTitle: { en: 'International Role', vi: 'Vai trò quốc tế' },
 
   // Global Components
   agreementTitle: { en: 'Terms and Rules', vi: 'Điều khoản và Quy định' },
-  agreementText: { en: 'By entering this official portal, you agree to comply with the laws of the Socialist Republic of Vietnam and provide truthful information.', vi: 'Bằng cách truy cập cổng thông tin chính thức này, bạn đồng ý tuân thủ luật pháp nước CHXHCN Việt Nam và cung cấp thông tin trung thực.' },
-  agree: { en: 'Agree and Continue', vi: 'Đồng ý và Tiếp tục' },
-  decline: { en: 'Decline Access', vi: 'Từ chối truy cập' },
-  searchPlaceholder: { en: 'Search portal...', vi: 'Tìm kiếm cổng thông tin...' },
-  faq: { en: 'Frequently Asked Questions', vi: 'Câu hỏi thường gặp' },
-  contactUs: { en: 'Contact Official Channels', vi: 'Liên hệ các kênh chính thức' },
+  agreementText: { en: 'By entering this official portal, you agree to comply with the laws.', vi: 'Bằng cách truy cập, bạn đồng ý tuân thủ pháp luật.' },
+  agree: { en: 'Agree', vi: 'Đồng ý' },
+  decline: { en: 'Decline', vi: 'Từ chối' },
+  searchPlaceholder: { en: 'Search...', vi: 'Tìm kiếm...' },
+  faq: { en: 'FAQ', vi: 'Câu hỏi thường gặp' },
+  contactUs: { en: 'Contact', vi: 'Liên hệ' },
   statusSubmitted: { en: 'Submitted', vi: 'Đã nộp' },
-  statusReview: { en: 'Under Review', vi: 'Đang xét duyệt' },
+  statusReview: { en: 'Review', vi: 'Đang xét duyệt' },
   statusApproved: { en: 'Approved', vi: 'Đã phê duyệt' },
-  statusRejected: { en: 'Rejected', vi: 'Bị từ chối' },
+  statusRejected: { en: 'Rejected', vi: 'Từ chối' },
   statusExpired: { en: 'Expired', vi: 'Hết hạn' },
   statusSuccess: { en: 'Success', vi: 'Thành công' },
   statusVerified: { en: 'Verified', vi: 'Đã xác thực' }

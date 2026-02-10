@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Language, DocType, Application } from '../types';
 import VerificationForm from '../components/VerificationForm';
@@ -7,7 +8,7 @@ import {
   ShieldCheck, Send, Upload, Loader2, 
   CheckCircle2, Landmark, CreditCard, 
   ChevronLeft, ChevronRight, Copy, Check,
-  Camera, Info, ShieldAlert, History
+  Camera, Info, ShieldAlert, History, FileText, BookmarkCheck, Layout
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -45,11 +46,11 @@ const Visa: React.FC<Props> = ({ language }) => {
   };
 
   const nextStep = () => {
-    window.scrollTo({ top: 400, behavior: 'smooth' });
+    window.scrollTo({ top: 800, behavior: 'smooth' });
     setStep(prev => prev + 1);
   };
   const prevStep = () => {
-    window.scrollTo({ top: 400, behavior: 'smooth' });
+    window.scrollTo({ top: 800, behavior: 'smooth' });
     setStep(prev => prev - 1);
   };
 
@@ -103,14 +104,43 @@ const Visa: React.FC<Props> = ({ language }) => {
 
   return (
     <div className="max-w-screen-xl mx-auto px-6 py-16 space-y-24 animate-in fade-in duration-700">
-      <section className="text-center space-y-8">
-        <h1 className="text-5xl md:text-7xl font-black text-slate-900 uppercase tracking-tighter leading-tight">
-          {svc.title[language]}
-        </h1>
-        <div className="w-48 h-2 bg-red-600 mx-auto rounded-full shadow-lg shadow-red-200" />
-        <p className="text-xl md:text-2xl text-red-700 font-bold uppercase tracking-[0.2em] italic opacity-80">
-          Official Entry Authorization Portal
-        </p>
+      {/* Visa Detailed Description Section */}
+      <section className="bg-white rounded-[3rem] border border-slate-100 shadow-xl overflow-hidden">
+        <div className="bg-red-600 p-8 md:p-12 text-white text-center space-y-4">
+          <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-tight">
+            {svc.title[language]}
+          </h1>
+          <p className="text-lg md:text-xl font-medium opacity-90 max-w-4xl mx-auto italic">
+            {t.visaIntro[language]}
+          </p>
+        </div>
+        
+        <div className="p-8 md:p-16 grid md:grid-cols-2 lg:grid-cols-3 gap-10">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 text-red-600"><Layout className="w-6 h-6" /><h3 className="font-black uppercase tracking-widest text-sm">{t.visaTypes[language]}</h3></div>
+            <p className="text-slate-600 text-sm leading-relaxed">{t.visaTypesText[language]}</p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 text-red-600"><ShieldCheck className="w-6 h-6" /><h3 className="font-black uppercase tracking-widest text-sm">{t.visaRules[language]}</h3></div>
+            <p className="text-slate-600 text-sm leading-relaxed">{t.visaRulesText[language]}</p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 text-red-600"><History className="w-6 h-6" /><h3 className="font-black uppercase tracking-widest text-sm">{t.visaDuration[language]}</h3></div>
+            <p className="text-slate-600 text-sm leading-relaxed">{t.visaDurationText[language]}</p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 text-red-600"><CreditCard className="w-6 h-6" /><h3 className="font-black uppercase tracking-widest text-sm">{t.visaFees[language]}</h3></div>
+            <p className="text-slate-600 text-sm leading-relaxed">{t.visaFeesText[language]}</p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 text-red-600"><BookmarkCheck className="w-6 h-6" /><h3 className="font-black uppercase tracking-widest text-sm">{t.visaWhy[language]}</h3></div>
+            <p className="text-slate-600 text-sm leading-relaxed">{t.visaWhyText[language]}</p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 text-red-600"><FileText className="w-6 h-6" /><h3 className="font-black uppercase tracking-widest text-sm">{t.visaLegal[language]}</h3></div>
+            <p className="text-slate-600 text-sm leading-relaxed">{t.visaLegalText[language]}</p>
+          </div>
+        </div>
       </section>
 
       {/* Verification section */}

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Language, DocType, Application } from '../types';
 import VerificationForm from '../components/VerificationForm';
@@ -7,7 +8,7 @@ import {
   FileText, ShieldCheck, User, MapPin, Globe, CreditCard, 
   ChevronRight, ChevronLeft, Upload, Loader2, CheckCircle2,
   AlertCircle, Briefcase, Camera, Send, Landmark, Info, 
-  Scale, FileBadge, History, HelpCircle, Copy, Check
+  Scale, FileBadge, History, HelpCircle, Copy, Check, Users, BookmarkCheck, ShieldAlert
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -45,11 +46,11 @@ const WorkPermit: React.FC<Props> = ({ language }) => {
   };
 
   const nextStep = () => {
-    window.scrollTo({ top: 400, behavior: 'smooth' });
+    window.scrollTo({ top: 800, behavior: 'smooth' });
     setStep(prev => prev + 1);
   };
   const prevStep = () => {
-    window.scrollTo({ top: 400, behavior: 'smooth' });
+    window.scrollTo({ top: 800, behavior: 'smooth' });
     setStep(prev => prev - 1);
   };
 
@@ -103,14 +104,43 @@ const WorkPermit: React.FC<Props> = ({ language }) => {
 
   return (
     <div className="max-w-screen-xl mx-auto px-6 py-16 space-y-24 animate-in fade-in duration-700">
-      <section className="text-center space-y-8">
-        <h1 className="text-5xl md:text-7xl font-black text-slate-900 uppercase tracking-tighter leading-tight">
-          {svc.title[language]}
-        </h1>
-        <div className="w-48 h-2 bg-red-600 mx-auto rounded-full shadow-lg shadow-red-200" />
-        <p className="text-xl md:text-2xl text-red-700 font-bold uppercase tracking-[0.2em] italic opacity-80">
-          Official Labor Workforce Bureau
-        </p>
+      {/* Work Permit Detailed Description Section - Updated with specific text */}
+      <section className="bg-white rounded-[3rem] border border-slate-100 shadow-xl overflow-hidden">
+        <div className="bg-red-600 p-8 md:p-12 text-white text-center space-y-4">
+          <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-tight">
+            {svc.title[language]}
+          </h1>
+          <p className="text-lg md:text-xl font-medium opacity-90 max-w-4xl mx-auto italic">
+            {t.wpIntro[language]}
+          </p>
+        </div>
+        
+        <div className="p-8 md:p-16 grid md:grid-cols-2 lg:grid-cols-3 gap-10">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 text-red-600"><Users className="w-6 h-6" /><h3 className="font-black uppercase tracking-widest text-sm">{t.wpWho[language]}</h3></div>
+            <p className="text-slate-600 text-sm leading-relaxed">{t.wpWhoText[language]}</p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 text-red-600"><ShieldCheck className="w-6 h-6" /><h3 className="font-black uppercase tracking-widest text-sm">{t.wpRules[language]}</h3></div>
+            <p className="text-slate-600 text-sm leading-relaxed">{t.wpRulesText[language]}</p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 text-red-600"><History className="w-6 h-6" /><h3 className="font-black uppercase tracking-widest text-sm">{t.wpDuration[language]}</h3></div>
+            <p className="text-slate-600 text-sm leading-relaxed">{t.wpDurationText[language]}</p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 text-red-600"><CreditCard className="w-6 h-6" /><h3 className="font-black uppercase tracking-widest text-sm">{t.wpFees[language]}</h3></div>
+            <p className="text-slate-600 text-sm leading-relaxed">{t.wpFeesText[language]}</p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 text-red-600"><BookmarkCheck className="w-6 h-6" /><h3 className="font-black uppercase tracking-widest text-sm">{t.wpWhy[language]}</h3></div>
+            <p className="text-slate-600 text-sm leading-relaxed">{t.wpWhyText[language]}</p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 text-red-600"><FileText className="w-6 h-6" /><h3 className="font-black uppercase tracking-widest text-sm">{t.wpLegal[language]}</h3></div>
+            <p className="text-slate-600 text-sm leading-relaxed">{t.wpLegalText[language]}</p>
+          </div>
+        </div>
       </section>
 
       {/* Verification section */}
@@ -304,31 +334,31 @@ const WorkPermit: React.FC<Props> = ({ language }) => {
         )}
       </section>
 
-      {/* Background/Rule section */}
-      <div className="grid lg:grid-cols-2 gap-12 text-slate-900">
-        <div className="space-y-8">
-          <section className="bg-white p-10 rounded-[3rem] border border-slate-200 shadow-sm space-y-6">
-            <div className="flex items-center gap-3 text-red-600">
-              <Info className="w-8 h-8" />
-              <h2 className="text-2xl font-black uppercase tracking-tight">Labor Authorization</h2>
+      {/* Footer Informational Sections */}
+      <section className="bg-slate-900 p-16 rounded-[4rem] text-center space-y-8 relative overflow-hidden group">
+         <div className="relative z-10 space-y-12">
+            <h4 className="text-3xl font-black text-white uppercase tracking-widest flex items-center justify-center gap-4 tracking-tight leading-none">
+              <ShieldAlert className="text-red-600 w-10 h-10" /> National Immigration Compliance
+            </h4>
+            <div className="grid md:grid-cols-3 gap-8">
+              <div className="p-8 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-sm space-y-4 hover:bg-white/10 transition-colors">
+                <History className="w-8 h-8 text-red-600 mx-auto" />
+                <h5 className="font-bold text-white uppercase text-sm">Registry Tracking</h5>
+                <p className="text-xs text-slate-400 italic">Official decisions rest solely with Vietnamese Immigration Authorities. Check status only via this portal.</p>
+              </div>
+              <div className="p-8 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-sm space-y-4 hover:bg-white/10 transition-colors">
+                <History className="w-8 h-8 text-red-600 mx-auto" />
+                <h5 className="font-bold text-white uppercase text-sm">Legal Framework</h5>
+                <p className="text-xs text-slate-400 italic">Processing time may vary depending on verification workload and background authentication.</p>
+              </div>
+              <div className="p-8 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-sm space-y-4 hover:bg-white/10 transition-colors">
+                <CreditCard className="w-8 h-8 text-red-600 mx-auto" />
+                <h5 className="font-bold text-white uppercase text-sm">Fiscal Policy</h5>
+                <p className="text-xs text-slate-400 italic">Visa fees are non-refundable once the application is submitted. Failed or rejected applications do not qualify for a refund.</p>
+              </div>
             </div>
-            <p className="text-slate-600 leading-relaxed italic">
-              A Work Permit allows foreign nationals to work legally in Vietnam. It is mandatory for managers, experts, and technicians employed by Vietnamese entities.
-            </p>
-          </section>
-        </div>
-
-        <div className="space-y-8">
-          <section className="bg-white p-10 rounded-[3rem] border border-slate-200 shadow-sm space-y-6">
-            <div className="flex items-center gap-3 text-red-600">
-              <CreditCard className="w-8 h-8" />
-              <h2 className="text-2xl font-black uppercase tracking-tight">Fees & Tariffs</h2>
-            </div>
-            <p className="text-3xl font-black text-red-600 leading-none">{svc.fees[language]}</p>
-            <p className="text-xs text-slate-400 uppercase tracking-widest font-bold">Base Administrative Levy</p>
-          </section>
-        </div>
-      </div>
+         </div>
+      </section>
     </div>
   );
 };
