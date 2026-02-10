@@ -1,0 +1,5 @@
+{
+  "name": "Vietnam Document Verification Portal",
+  "description": "An official government-style portal for verifying Work Permits, Visas, and Temporary Residence Cards (TRC) in Vietnam, featuring bilingual support and a secure verification system.",
+  "requestFramePermissions": []
+}
