@@ -2,25 +2,37 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-// Robust polyfill for process.env in the browser
+// Safe environment polyfill
 const globalAny = window as any;
-if (!globalAny.process) {
-  globalAny.process = { env: {} };
+try {
+  if (!globalAny.process) {
+    globalAny.process = { env: {} };
+  }
+  if (!globalAny.process.env) {
+    globalAny.process.env = {};
+  }
+  globalAny.process.env.API_KEY = globalAny.process.env.API_KEY || '';
+} catch (e) {
+  console.warn("Process polyfill failed, but proceeding...");
 }
-if (!globalAny.process.env) {
-  globalAny.process.env = {};
-}
-// Ensure API_KEY exists to prevent the SDK from crashing during initialization
-globalAny.process.env.API_KEY = globalAny.process.env.API_KEY || '';
 
 const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error("Could not find root element to mount to");
-}
 
-const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+if (!rootElement) {
+  console.error("FATAL: Root element not found in DOM");
+} else {
+  try {
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    );
+  } catch (renderError) {
+    console.error("React Render Error:", renderError);
+    rootElement.innerHTML = `<div style="padding: 20px; color: red; font-family: sans-serif;">
+      <h2>Application Error</h2>
+      <p>Failed to load the verification portal. Please check the console for logs.</p>
+    </div>`;
+  }
+}
