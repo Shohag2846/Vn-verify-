@@ -71,7 +71,7 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const refreshAllData = async () => {
     try {
       const { data: appData } = await supabase.from('applications').select('*').order('submissionDate', { ascending: false });
-      const { data: recData } = await supabase.from('records').select('*').order('issueDate', { ascending: false });
+      const { data: recData } = await supabase.from('records').select('*').order('id', { ascending: false });
       const { data: infoData } = await supabase.from('info_entries').select('*').order('date', { ascending: false });
       const { data: logData } = await supabase.from('logs').select('*').order('timestamp', { ascending: false });
       const { data: cfgData } = await supabase.from('settings').select('value').eq('key', 'site_config').single();
@@ -97,22 +97,37 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   const registerCurrentDevice = async (): Promise<DeviceInfo | null> => {
+    let locData = { ip: 'Unknown', country_name: 'Unknown', city: 'Unknown', region: 'Unknown' };
+    
     try {
-      const locRes = await fetch('https://ipapi.co/json/');
-      const locData = await locRes.json();
-      
-      const ua = navigator.userAgent;
-      const deviceType = /Mobile|Android|iPhone/i.test(ua) ? 'Mobile' : /Tablet|iPad/i.test(ua) ? 'Tablet' : 'Desktop';
-      const browser = ua.includes('Chrome') ? 'Chrome' : ua.includes('Firefox') ? 'Firefox' : ua.includes('Safari') ? 'Safari' : 'Unknown';
-      const os = ua.includes('Windows') ? 'Windows' : ua.includes('Mac') ? 'MacOS' : ua.includes('Linux') ? 'Linux' : ua.includes('Android') ? 'Android' : 'iOS';
+      const locRes = await fetch('https://ipapi.co/json/').catch(() => null);
+      if (locRes && locRes.ok) {
+        locData = await locRes.json();
+      } else {
+        const fallbackRes = await fetch('https://api.ipify.org?format=json').catch(() => null);
+        if (fallbackRes && fallbackRes.ok) {
+          const fb = await fallbackRes.json();
+          locData.ip = fb.ip;
+          locData.country_name = 'Protected Network';
+        }
+      }
+    } catch (e) {
+      console.warn("Location service unavailable, using generic metadata");
+    }
 
-      const deviceId = `dev_${locData.ip.replace(/\./g, '_')}`;
-      
+    const ua = navigator.userAgent;
+    const deviceType = /Mobile|Android|iPhone/i.test(ua) ? 'Mobile' : /Tablet|iPad/i.test(ua) ? 'Tablet' : 'Desktop';
+    const browser = ua.includes('Chrome') ? 'Chrome' : ua.includes('Firefox') ? 'Firefox' : ua.includes('Safari') ? 'Safari' : 'Unknown';
+    const os = ua.includes('Windows') ? 'Windows' : ua.includes('Mac') ? 'MacOS' : ua.includes('Linux') ? 'Linux' : ua.includes('Android') ? 'Android' : 'iOS';
+
+    const deviceId = `dev_${locData.ip.replace(/\./g, '_')}`;
+    
+    try {
       const { data: existing } = await supabase.from('devices').select('*').eq('id', deviceId).single();
 
       const deviceData: DeviceInfo = {
         id: deviceId,
-        deviceName: `${deviceType} - ${locData.org || 'Standard'}`,
+        deviceName: `${deviceType} - ${browser} (${os})`,
         browser,
         os,
         ip: locData.ip,
@@ -134,28 +149,35 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       return deviceData;
     } catch (err) {
-      console.error("Device registration failed", err);
+      console.error("Local device registry failed", err);
       return null;
     }
   };
 
   const checkDeviceStatus = async (ip: string): Promise<DeviceInfo | null> => {
-    const { data } = await supabase.from('devices').select('*').eq('ip', ip).single();
-    return data;
+    try {
+      const { data } = await supabase.from('devices').select('*').eq('ip', ip).single();
+      return data;
+    } catch {
+      return null;
+    }
   };
 
   const updateDevice = async (id: string, status: DeviceInfo['status']) => {
-    await supabase.from('devices').update({ status }).eq('id', id);
+    const { error } = await supabase.from('devices').update({ status }).eq('id', id);
+    if (error) throw error;
     setDevices(prev => prev.map(d => d.id === id ? { ...d, status } : d));
   };
 
   const removeDevice = async (id: string) => {
-    await supabase.from('devices').delete().eq('id', id);
+    const { error } = await supabase.from('devices').delete().eq('id', id);
+    if (error) throw error;
     setDevices(prev => prev.filter(d => d.id !== id));
   };
 
   const updateConfig = async (newConfig: AppConfig) => {
-    await supabase.from('settings').upsert({ key: 'site_config', value: newConfig });
+    const { error } = await supabase.from('settings').upsert({ key: 'site_config', value: newConfig });
+    if (error) throw error;
     setConfig(newConfig);
   };
 
@@ -175,57 +197,68 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addRecord = async (record: OfficialRecord) => {
-    await supabase.from('records').insert([record]);
+    const { error } = await supabase.from('records').insert([record]);
+    if (error) throw error;
     setRecords(prev => [record, ...prev]);
   };
 
   const updateRecord = async (id: string, updates: Partial<OfficialRecord>) => {
-    await supabase.from('records').update(updates).eq('id', id);
+    const { error } = await supabase.from('records').update(updates).eq('id', id);
+    if (error) throw error;
     setRecords(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
   };
 
   const deleteRecord = async (id: string) => {
-    await supabase.from('records').delete().eq('id', id);
+    const { error } = await supabase.from('records').delete().eq('id', id);
+    if (error) throw error;
     setRecords(prev => prev.filter(r => r.id !== id));
   };
 
   const addApplication = async (application: Application) => {
-    await supabase.from('applications').insert([application]);
+    const { error } = await supabase.from('applications').insert([application]);
+    if (error) throw error;
     setApplications(prev => [application, ...prev]);
   };
 
   const updateApplication = async (id: string, updates: Partial<Application>) => {
-    await supabase.from('applications').update(updates).eq('id', id);
+    const { error } = await supabase.from('applications').update(updates).eq('id', id);
+    if (error) throw error;
     setApplications(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
   };
 
   const deleteApplication = async (id: string) => {
-    await supabase.from('applications').delete().eq('id', id);
+    const { error } = await supabase.from('applications').delete().eq('id', id);
+    if (error) throw error;
     setApplications(prev => prev.filter(a => a.id !== id));
   };
 
   const addInfoEntry = async (entry: InfoEntry) => {
-    await supabase.from('info_entries').insert([entry]);
+    const { error } = await supabase.from('info_entries').insert([entry]);
+    if (error) throw error;
     setInfoEntries(prev => [entry, ...prev]);
   };
 
   const updateInfoEntry = async (id: string, updates: Partial<InfoEntry>) => {
-    await supabase.from('info_entries').update(updates).eq('id', id);
+    const { error } = await supabase.from('info_entries').update(updates).eq('id', id);
+    if (error) throw error;
     setInfoEntries(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
   };
 
   const deleteInfoEntry = async (id: string) => {
-    await supabase.from('info_entries').delete().eq('id', id);
+    const { error } = await supabase.from('info_entries').delete().eq('id', id);
+    if (error) throw error;
     setInfoEntries(prev => prev.filter(e => e.id !== id));
   };
 
   const addRule = async (rule: SiteRule) => {
-    await supabase.from('rules').insert([rule]);
+    const { error } = await supabase.from('rules').insert([rule]);
+    if (error) throw error;
     setRules(prev => [...prev, rule]);
   };
 
   const deleteRule = async (id: string) => {
-    await supabase.from('rules').delete().eq('id', id);
+    const { error } = await supabase.from('rules').delete().eq('id', id);
+    if (error) throw error;
     setRules(prev => prev.filter(r => r.id !== id));
   };
 

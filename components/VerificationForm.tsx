@@ -24,7 +24,6 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [matchedRecord, setMatchedRecord] = useState<OfficialRecord | null>(null);
   const [previewFile, setPreviewFile] = useState<string | null>(null);
-  const [imgError, setImgError] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
 
   const handleVerify = async (e: React.FormEvent) => {
@@ -34,7 +33,6 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
     setLoading(true);
     setResult(null);
     setMatchedRecord(null);
-    setImgError(false);
 
     const cleanPassport = passport.trim().toUpperCase();
     const cleanEmail = email.trim().toLowerCase();
@@ -42,7 +40,6 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     try {
-      // Logic: Match passport AND optionally email if provided by admin
       const officialRecord = records.find(r => 
         r.passportNumber.toUpperCase() === cleanPassport && 
         r.type === type &&
@@ -78,10 +75,13 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
     }
   };
 
-  const handleDownload = (url: string, filename: string) => {
-    if (!url) return;
+  const handleDownload = (dataUrl: string | undefined, filename: string) => {
+    if (!dataUrl) {
+      alert("Asset file not found in registry.");
+      return;
+    }
     const link = document.createElement('a');
-    link.href = url;
+    link.href = dataUrl;
     link.download = filename;
     document.body.appendChild(link);
     link.click();
@@ -90,7 +90,6 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
 
   return (
     <div className="max-w-5xl mx-auto">
-      {/* Universal Modal for Full Image View */}
       {previewFile && (
         <div className="fixed inset-0 z-[500] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-300">
            <button onClick={() => setPreviewFile(null)} className="absolute top-6 right-6 p-4 bg-white/10 text-white rounded-full hover:bg-white/40 transition-all active:scale-90"><X className="w-8 h-8" /></button>
@@ -99,13 +98,11 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
                 src={previewFile} 
                 className="w-full h-full object-contain rounded-2xl" 
                 alt="Registry Asset Preview" 
-                onError={(e) => (e.target as HTMLImageElement).src = 'https://placehold.co/800x1200?text=Scan+Not+Readable'} 
               />
            </div>
         </div>
       )}
 
-      {/* Input Form */}
       <div className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100 mb-12">
         <div className="p-8 md:p-12">
           <form onSubmit={handleVerify} className="space-y-8">
@@ -146,7 +143,6 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
 
       {result && (
         <div ref={resultRef} className="animate-in fade-in slide-in-from-bottom-12 duration-1000 space-y-8">
-          {/* Status Banner */}
           <div className={`p-8 rounded-[3rem] border-2 shadow-xl flex items-center gap-8 ${
             result.status === 'valid' ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'
           }`}>
@@ -162,13 +158,8 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
              </div>
           </div>
 
-          {/* Main Record Display */}
           {matchedRecord && (
             <div className="bg-white rounded-[4rem] border-2 border-slate-100 shadow-2xl overflow-hidden relative group">
-              <div className="absolute top-10 right-10 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity duration-1000">
-                 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Emblem_of_Vietnam.svg/200px-Emblem_of_Vietnam.svg.png" className="w-64" alt="Emblem" />
-              </div>
-
               <div className="p-12 lg:p-20 grid lg:grid-cols-3 gap-16">
                 <div className="lg:col-span-2 space-y-12">
                    <div className="flex items-center gap-4 text-red-600 border-b border-slate-50 pb-6">
@@ -182,7 +173,6 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
                         { label: 'Passport Identification', val: matchedRecord.passportNumber, icon: FileText, highlight: true },
                         { label: 'Nationality / Region', val: matchedRecord.nationality, icon: Globe },
                         { label: 'Registry Category', val: matchedRecord.type, icon: Briefcase },
-                        // Fixed: Property 'employer' does not exist on type 'OfficialRecord'. Use 'sponsorCompany' instead.
                         { label: 'Sponsoring Entity', val: matchedRecord.sponsorCompany || 'VERIFIED SPONSOR', icon: Briefcase },
                         { label: 'Professional Role', val: matchedRecord.jobTitle || 'ADMINISTRATIVE', icon: User },
                         { label: 'Administrative Contact', val: matchedRecord.email, icon: Mail },
@@ -205,7 +195,6 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
                    </div>
                 </div>
 
-                {/* Right: Registry Assets */}
                 <div className="space-y-8">
                    <div className="bg-slate-950 rounded-[3rem] p-10 text-white space-y-8 shadow-2xl relative overflow-hidden">
                       <div className="relative z-10 space-y-8">
@@ -214,26 +203,33 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
                          <div className="space-y-4">
                             <p className="text-[10px] font-black uppercase text-white/40 tracking-widest text-center">Identity Assets</p>
                             <div className="grid grid-cols-2 gap-4">
-                               <button onClick={() => setPreviewFile(matchedRecord.passport_copy || matchedRecord.pdfUrl)} className="aspect-square bg-white/5 rounded-2xl border border-white/10 flex flex-col items-center justify-center gap-2 hover:bg-white/10 transition-all group">
-                                  <ImageIcon className="w-6 h-6 text-emerald-400 group-hover:scale-125 transition-transform" />
-                                  <span className="text-[8px] font-black uppercase">Passport</span>
-                               </button>
-                               <button onClick={() => (matchedRecord.visa_copy || matchedRecord.trc_copy) && setPreviewFile(matchedRecord.visa_copy || matchedRecord.trc_copy || null)} disabled={!matchedRecord.visa_copy && !matchedRecord.trc_copy} className="aspect-square bg-white/5 rounded-2xl border border-white/10 flex flex-col items-center justify-center gap-2 hover:bg-white/10 transition-all group disabled:opacity-30">
-                                  <ImageIcon className="w-6 h-6 text-blue-400 group-hover:scale-125 transition-transform" />
-                                  <span className="text-[8px] font-black uppercase">Visa / TRC</span>
-                               </button>
+                               <div className="space-y-2">
+                                  <button onClick={() => setPreviewFile(matchedRecord.passport_copy || matchedRecord.pdfUrl)} className="w-full aspect-square bg-white/5 rounded-2xl border border-white/10 flex flex-col items-center justify-center gap-2 hover:bg-white/10 transition-all group">
+                                     <ImageIcon className="w-6 h-6 text-emerald-400 group-hover:scale-110 transition-transform" />
+                                     <span className="text-[8px] font-black uppercase">Passport</span>
+                                  </button>
+                                  <button onClick={() => handleDownload(matchedRecord.passport_copy || matchedRecord.pdfUrl, `${matchedRecord.passportNumber}_Passport.png`)} className="w-full py-2 bg-white/5 hover:bg-emerald-600 rounded-xl text-[8px] font-black uppercase transition-all">Download</button>
+                               </div>
+                               <div className="space-y-2">
+                                  <button onClick={() => (matchedRecord.visa_copy || matchedRecord.trc_copy) && setPreviewFile(matchedRecord.visa_copy || matchedRecord.trc_copy || null)} disabled={!matchedRecord.visa_copy && !matchedRecord.trc_copy} className="w-full aspect-square bg-white/5 rounded-2xl border border-white/10 flex flex-col items-center justify-center gap-2 hover:bg-white/10 transition-all group disabled:opacity-30">
+                                     <ImageIcon className="w-6 h-6 text-blue-400 group-hover:scale-110 transition-transform" />
+                                     <span className="text-[8px] font-black uppercase">Visa / TRC</span>
+                                  </button>
+                                  <button 
+                                    disabled={!matchedRecord.visa_copy && !matchedRecord.trc_copy}
+                                    onClick={() => handleDownload(matchedRecord.visa_copy || matchedRecord.trc_copy || undefined, `${matchedRecord.passportNumber}_Visa_TRC.png`)} 
+                                    className="w-full py-2 bg-white/5 hover:bg-blue-600 rounded-xl text-[8px] font-black uppercase transition-all disabled:opacity-30"
+                                  >Download</button>
+                               </div>
                             </div>
                          </div>
 
-                         <div className="space-y-3">
+                         <div className="space-y-3 pt-4 border-t border-white/10">
                             <button 
-                              onClick={() => handleDownload(matchedRecord.pdfUrl, `${matchedRecord.passportNumber}_Official_Credentials.png`)}
+                              onClick={() => handleDownload(matchedRecord.pdfUrl, `${matchedRecord.passportNumber}_Registry_Dossier.png`)}
                               className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl transition-all flex items-center justify-center gap-3 active:scale-95"
                             >
-                               <Download className="w-4 h-4" /> Download Credentials
-                            </button>
-                            <button onClick={() => window.print()} className="w-full py-4 bg-white/5 hover:bg-white/10 text-white/60 border border-white/10 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-3">
-                               <Printer className="w-4 h-4" /> Print Dossier
+                               <Download className="w-4 h-4" /> Save Full Dossier
                             </button>
                          </div>
                       </div>
@@ -254,7 +250,7 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
                 <div className="w-32 h-32 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto shadow-inner"><SearchX className="w-16 h-16" /></div>
                 <div className="space-y-4">
                    <h4 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">Record Not Located</h4>
-                   <p className="text-slate-500 max-w-xl mx-auto italic font-medium">No official record matches the Passport <span className="text-red-600 font-black">[{passport.toUpperCase()}]</span> and provided Email. Please verify your input or consult the administrative body.</p>
+                   <p className="text-slate-500 max-w-xl mx-auto italic font-medium">No official record matches the Passport <span className="text-red-600 font-black">[{passport.toUpperCase()}]</span>. Please verify your input or consult the administrative body.</p>
                 </div>
                 <button onClick={() => { setResult(null); setPassport(''); }} className="px-12 py-5 bg-slate-900 text-white rounded-full font-black uppercase text-xs tracking-widest shadow-2xl active:scale-95 transition-all">New Search Request</button>
              </div>

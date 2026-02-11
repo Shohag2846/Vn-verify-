@@ -178,4 +178,8 @@ export interface OfficialRecord {
   visa_copy?: string;
   trc_copy?: string;
   pdfUrl: string;
+  // NEW FIELDS
+  dob: string;
+  company_name: string;
+  file_url?: string;
 }
