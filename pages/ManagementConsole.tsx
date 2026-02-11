@@ -7,7 +7,7 @@ import {
   SearchX, Eye, FileText, CheckCircle2, ChevronRight, X, FileSearch, 
   Camera, Check, Ban, Banknote, Loader2, Copy, History, Download, ShieldCheck, 
   Settings, Zap, AlertTriangle, BarChart3, User, Briefcase, Globe, Landmark, Filter,
-  PlusCircle, Trash2, ExternalLink, Upload, RefreshCcw
+  PlusCircle, Trash2, ExternalLink, Upload, RefreshCcw, Pencil
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -16,21 +16,22 @@ type AdminTab = 'DASHBOARD' | 'RECORD' | 'PAYMENT' | 'INFORMATION' | 'DEVICE';
 const ManagementConsole: React.FC = () => {
   const { 
     applications, records, logs, isLoading,
-    updateApplication, addRecord, deleteRecord, addLog 
+    updateApplication, addRecord, updateRecord, deleteRecord, addLog 
   } = useAppConfig();
   
   const [isAuth, setIsAuth] = useState(false);
   const [activeTab, setActiveTab] = useState<AdminTab>('DASHBOARD');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
-  const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<{url: string, label: string} | null>(null);
   const [typeFilter, setTypeFilter] = useState<DocType | 'ALL'>('ALL');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Manual Form State
+  // Manual & Edit Form State
   const [manualData, setManualData] = useState<Partial<OfficialRecord>>({
     type: DocType.WORK_PERMIT,
     fullName: '',
@@ -58,13 +59,6 @@ const ManagementConsole: React.FC = () => {
     } else {
       alert('Security violation: Incorrect credentials.');
     }
-  };
-
-  const copyToClipboard = (text: string, field: string) => {
-    if (!text) return;
-    navigator.clipboard.writeText(text);
-    setCopiedField(field);
-    setTimeout(() => setCopiedField(null), 2000);
   };
 
   const handleRefresh = () => {
@@ -97,7 +91,7 @@ const ManagementConsole: React.FC = () => {
     try {
       await addRecord(newRecord);
       await updateApplication(app.id, { status: 'Approved' });
-      alert(`Success: Dossier ${app.id} verified. New Record ID: ${recordId}`);
+      alert(`Success: Dossier ${app.id} verified.`);
       setSelectedAppId(null);
     } catch (err) {
       alert('Error during approval process.');
@@ -110,24 +104,39 @@ const ManagementConsole: React.FC = () => {
       alert('Please fill mandatory fields.');
       return;
     }
-    const recordId = `MAN-${manualData.type?.slice(0,2)}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
-    const finalRecord: OfficialRecord = {
-      ...manualData as OfficialRecord,
-      id: recordId,
-      authorityReference: 'ADMIN_MANUAL_ENTRY'
-    };
+
     try {
-      await addRecord(finalRecord);
-      alert('Manual Registry Entry Created Successfully.');
-      setIsManualModalOpen(false);
+      if (isEditModalOpen && editingRecordId) {
+        await updateRecord(editingRecordId, manualData);
+        alert('Record updated successfully.');
+        setIsEditModalOpen(false);
+        setEditingRecordId(null);
+      } else {
+        const recordId = `MAN-${manualData.type?.slice(0,2)}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+        const finalRecord: OfficialRecord = {
+          ...manualData as OfficialRecord,
+          id: recordId,
+          authorityReference: 'ADMIN_MANUAL_ENTRY'
+        };
+        await addRecord(finalRecord);
+        alert('Manual Registry Entry Created Successfully.');
+        setIsManualModalOpen(false);
+      }
+      
       setManualData({
         type: DocType.WORK_PERMIT, fullName: '', passportNumber: '', nationality: '',
         dob: '', email: '', phone: '', issueDate: new Date().toISOString().split('T')[0],
         expiryDate: '', status: 'Verified', pdfUrl: '', employer: '', jobTitle: ''
       });
     } catch (err) {
-      alert('Failed to create manual entry.');
+      alert('Operation failed. Please try again.');
     }
+  };
+
+  const handleEditClick = (rec: OfficialRecord) => {
+    setManualData(rec);
+    setEditingRecordId(rec.id);
+    setIsEditModalOpen(true);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -142,12 +151,12 @@ const ManagementConsole: React.FC = () => {
   };
 
   const handleDeleteRecord = async (id: string) => {
-    if (window.confirm('Are you sure you want to permanently delete this official record? This cannot be undone and will be reflected for all users immediately.')) {
+    if (window.confirm('WARNING: Are you sure you want to permanently delete this official record? This action cannot be undone and will be reflected immediately for all users.')) {
       try {
         await deleteRecord(id);
-        addLog('Admin', 'Delete Record', `Registry ID ${id} removed from archives.`);
+        alert('Record deleted successfully.');
       } catch (err) {
-        alert('Failed to delete record. Please try again.');
+        alert('Critical: Failed to delete record from server.');
       }
     }
   };
@@ -209,7 +218,6 @@ const ManagementConsole: React.FC = () => {
   }
 
   const selectedApp = applications.find(a => a.id === selectedAppId);
-  const selectedRecord = records.find(r => r.id === selectedRecordId);
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900">
@@ -223,7 +231,6 @@ const ManagementConsole: React.FC = () => {
                src={previewFile.url} 
                className="max-w-full max-h-full object-contain rounded-2xl shadow-inner" 
                alt="Secure File"
-               onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/800x1200?text=File+Not+Found+or+Inaccessible'; }}
              />
              <div className="absolute bottom-6 left-6 bg-black/40 backdrop-blur-md px-6 py-2 rounded-full text-white font-black uppercase text-xs tracking-widest">
                {previewFile.label}
@@ -232,20 +239,25 @@ const ManagementConsole: React.FC = () => {
         </div>
       )}
 
-      {/* Manual Entry Modal */}
-      {isManualModalOpen && (
+      {/* Manual Entry & Edit Modal */}
+      {(isManualModalOpen || isEditModalOpen) && (
         <div className="fixed inset-0 z-[250] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 lg:p-10 overflow-y-auto">
           <div className="bg-white w-full max-w-5xl rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300 my-auto max-h-[95vh] border-t-[10px] border-emerald-500">
             <div className="p-8 border-b bg-slate-50 flex items-center justify-between sticky top-0 z-20">
               <div className="flex items-center gap-6">
-                <div className="p-5 bg-emerald-600 rounded-2xl text-white shadow-xl"><PlusCircle className="w-7 h-7" /></div>
+                <div className={`p-5 rounded-2xl text-white shadow-xl ${isEditModalOpen ? 'bg-blue-600' : 'bg-emerald-600'}`}>
+                  {isEditModalOpen ? <Pencil className="w-7 h-7" /> : <PlusCircle className="w-7 h-7" />}
+                </div>
                 <div>
-                  <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter leading-none">Manual Registry Creation</h2>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Authorized Administrative Input</p>
+                  <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter leading-none">
+                    {isEditModalOpen ? 'Modify Registry Entry' : 'Manual Registry Creation'}
+                  </h2>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Authorized Administrative Access</p>
                 </div>
               </div>
-              <button onClick={() => setIsManualModalOpen(false)} className="p-4 bg-slate-100 rounded-full hover:bg-red-50 hover:text-red-600 transition-all"><X className="w-6 h-6" /></button>
+              <button onClick={() => { setIsManualModalOpen(false); setIsEditModalOpen(false); setEditingRecordId(null); }} className="p-4 bg-slate-100 rounded-full hover:bg-red-50 hover:text-red-600 transition-all"><X className="w-6 h-6" /></button>
             </div>
+            
             <form onSubmit={handleManualRecordSubmit} className="flex-1 overflow-y-auto p-12 lg:p-16 grid lg:grid-cols-2 gap-10">
               <div className="space-y-8">
                 <h3 className="text-xs font-black uppercase text-emerald-600 tracking-widest border-b pb-4 flex items-center gap-2"><User className="w-4 h-4" /> Personal Information</h3>
@@ -264,12 +276,64 @@ const ManagementConsole: React.FC = () => {
                       <input required type="email" value={manualData.email} onChange={e => setManualData({...manualData, email: e.target.value.toLowerCase()})} className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-2xl text-slate-900 font-bold outline-none focus:border-emerald-500" placeholder="user@domain.com" />
                     </div>
                   </div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Nationality</label>
+                      <input required value={manualData.nationality} onChange={e => setManualData({...manualData, nationality: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-2xl text-slate-900 font-bold outline-none focus:border-emerald-500 uppercase" placeholder="COUNTRY" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Date of Birth</label>
+                      <input required type="date" value={manualData.dob} onChange={e => setManualData({...manualData, dob: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-2xl text-slate-900 font-bold outline-none focus:border-emerald-500" />
+                    </div>
+                  </div>
+                </div>
+
+                <h3 className="text-xs font-black uppercase text-emerald-600 tracking-widest border-b pb-4 pt-4 flex items-center gap-2"><Briefcase className="w-4 h-4" /> Sponsorship Info</h3>
+                <div className="grid gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Employer Name</label>
+                    <input value={manualData.employer} onChange={e => setManualData({...manualData, employer: e.target.value.toUpperCase()})} className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-2xl text-slate-900 font-bold outline-none focus:border-emerald-500 uppercase" placeholder="COMPANY NAME" />
+                  </div>
                 </div>
               </div>
-              <div className="pt-8 col-span-full">
-                  <button type="submit" className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase tracking-widest hover:bg-emerald-500 shadow-2xl shadow-emerald-100 transition-all active:scale-95 flex items-center justify-center gap-3">
-                    <ShieldCheck className="w-6 h-6" /> Commit Record to Registry
+
+              <div className="space-y-8">
+                <h3 className="text-xs font-black uppercase text-emerald-600 tracking-widest border-b pb-4 flex items-center gap-2"><Settings className="w-4 h-4" /> Category & Validity</h3>
+                <div className="grid gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Registry Type</label>
+                    <select value={manualData.type} onChange={e => setManualData({...manualData, type: e.target.value as DocType})} className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-2xl text-slate-900 font-bold outline-none focus:border-emerald-500">
+                      <option value={DocType.WORK_PERMIT}>WORK PERMIT</option>
+                      <option value={DocType.VISA}>VISA (ENTRY)</option>
+                      <option value={DocType.TRC}>TRC (RESIDENCY)</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Issue Date</label>
+                      <input required type="date" value={manualData.issueDate} onChange={e => setManualData({...manualData, issueDate: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-2xl text-slate-900 font-bold outline-none focus:border-emerald-500" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Expiry Date</label>
+                      <input required type="date" value={manualData.expiryDate} onChange={e => setManualData({...manualData, expiryDate: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-2xl text-slate-900 font-bold outline-none focus:border-emerald-500" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Record Image/Scan</label>
+                    <div className="p-8 border-4 border-dashed border-slate-100 rounded-3xl text-center relative group bg-slate-50 hover:border-emerald-500 transition-all cursor-pointer">
+                      <input type="file" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                      <Upload className="mx-auto w-10 h-10 text-slate-300 mb-2 group-hover:text-emerald-500" />
+                      <p className="text-[10px] font-black uppercase text-slate-400">Upload official document scan</p>
+                      {manualData.pdfUrl && <div className="absolute inset-0 bg-emerald-600 flex flex-col items-center justify-center text-white font-black uppercase text-xs"><span>FILE ATTACHED</span><CheckCircle2 className="mt-2 w-6 h-6" /></div>}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-8">
+                  <button type="submit" className={`w-full py-6 text-white rounded-3xl font-black uppercase tracking-widest shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3 ${isEditModalOpen ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-100' : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-100'}`}>
+                    <ShieldCheck className="w-6 h-6" /> {isEditModalOpen ? 'Commit Changes' : 'Commit Record to Registry'}
                   </button>
+                </div>
               </div>
             </form>
           </div>
@@ -333,6 +397,54 @@ const ManagementConsole: React.FC = () => {
             </div>
           </div>
 
+          {/* RECORD TAB */}
+          {activeTab === 'RECORD' && (
+            <div className="space-y-10 animate-in fade-in duration-500">
+               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                  <div className="flex gap-2 bg-slate-100 p-2 rounded-2xl border border-slate-200">
+                     {['ALL', DocType.WORK_PERMIT, DocType.VISA, DocType.TRC].map(type => (
+                       <button key={type} onClick={() => setTypeFilter(type as any)} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${typeFilter === type ? 'bg-white text-red-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>{type === 'ALL' ? 'Everything' : type}</button>
+                     ))}
+                  </div>
+                  <button onClick={() => setIsManualModalOpen(true)} className="flex items-center gap-3 px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:bg-emerald-500 active:scale-95 transition-all">
+                    <PlusCircle className="w-4 h-4" /> Create Manual Entry
+                  </button>
+               </div>
+
+               <div className="bg-white rounded-[3.5rem] border-2 border-slate-100 shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-50 border-b text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        <tr><th className="px-10 py-8">Citizen Entity</th><th className="px-10 py-8">Reference ID</th><th className="px-10 py-8">Category</th><th className="px-10 py-8">Validity</th><th className="px-10 py-8 text-right">Actions</th></tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredRecords.length > 0 ? filteredRecords.map(rec => (
+                          <tr key={rec.id} className="hover:bg-slate-50 transition-all group">
+                            <td className="px-10 py-8">
+                               <div className="flex items-center gap-5">
+                                  <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-sm"><User className="w-6 h-6" /></div>
+                                  <div><p className="font-black text-sm uppercase text-slate-900 tracking-tight">{rec.fullName}</p><p className="text-[9px] font-bold text-slate-400 font-mono mt-1">{rec.passportNumber}</p></div>
+                               </div>
+                            </td>
+                            <td className="px-10 py-8 font-mono text-xs font-bold text-slate-400">{rec.id}</td>
+                            <td className="px-10 py-8"><span className="text-[9px] font-black uppercase bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">{rec.type}</span></td>
+                            <td className="px-10 py-8"><div className="space-y-1"><p className="text-[10px] font-bold text-slate-900">{rec.issueDate}</p><p className={`text-[9px] font-black uppercase ${new Date(rec.expiryDate) < new Date() ? 'text-red-500' : 'text-emerald-500'}`}>EXP: {rec.expiryDate}</p></div></td>
+                            <td className="px-10 py-8 text-right">
+                               <div className="flex justify-end gap-2">
+                                  <button onClick={() => setPreviewFile({url: rec.pdfUrl, label: 'Official Scan'})} title="View" className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-emerald-500 hover:border-emerald-200 transition-all shadow-sm"><Eye className="w-5 h-5" /></button>
+                                  <button onClick={() => handleEditClick(rec)} title="Edit" className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-blue-500 hover:border-blue-200 transition-all shadow-sm"><Pencil className="w-5 h-5" /></button>
+                                  <button onClick={() => handleDeleteRecord(rec.id)} title="Delete" className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-red-500 hover:border-red-200 transition-all shadow-sm"><Trash2 className="w-5 h-5" /></button>
+                               </div>
+                            </td>
+                          </tr>
+                        )) : (<tr><td colSpan={5} className="py-20 text-center"><SearchX className="w-16 h-16 text-slate-100 mx-auto mb-4" /><p className="text-slate-400 font-bold italic">No records found.</p></td></tr>)}
+                      </tbody>
+                    </table>
+                  </div>
+               </div>
+            </div>
+          )}
+
           {/* DASHBOARD TAB */}
           {activeTab === 'DASHBOARD' && (
             <div className="space-y-16 animate-in fade-in duration-500">
@@ -393,10 +505,9 @@ const ManagementConsole: React.FC = () => {
                        {filteredApps.length > 0 ? filteredApps.map(app => (
                          <div 
                            key={app.id} 
-                           onClick={() => setSelectedAppId(app.id)} 
-                           className="flex items-center justify-between p-6 bg-slate-50 border border-slate-100 rounded-[2.5rem] hover:bg-white hover:shadow-2xl hover:-translate-y-1 transition-all group cursor-pointer"
+                           className="flex items-center justify-between p-6 bg-slate-50 border border-slate-100 rounded-[2.5rem] hover:bg-white hover:shadow-2xl hover:-translate-y-1 transition-all group"
                          >
-                            <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-6 cursor-pointer" onClick={() => setSelectedAppId(app.id)}>
                                <div className={`p-5 rounded-2xl text-white shadow-xl ${
                                  app.type === DocType.WORK_PERMIT ? 'bg-red-500' : 
                                  app.type === DocType.VISA ? 'bg-blue-500' : 'bg-emerald-500'
@@ -416,7 +527,9 @@ const ManagementConsole: React.FC = () => {
                                <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${app.paymentStatus === 'Paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
                                  {app.paymentStatus}
                                </span>
-                               <ChevronRight className="w-6 h-6 text-slate-200 group-hover:text-red-600 transition-all" />
+                               <button onClick={() => setSelectedAppId(app.id)} className="p-3 bg-white border border-slate-100 rounded-xl text-slate-300 hover:text-red-600 transition-all">
+                                 <ChevronRight className="w-6 h-6" />
+                               </button>
                             </div>
                          </div>
                        )) : (
@@ -465,53 +578,6 @@ const ManagementConsole: React.FC = () => {
             </div>
           )}
 
-          {/* RECORD TAB */}
-          {activeTab === 'RECORD' && (
-            <div className="space-y-10 animate-in fade-in duration-500">
-               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                  <div className="flex gap-2 bg-slate-100 p-2 rounded-2xl border border-slate-200">
-                     {['ALL', DocType.WORK_PERMIT, DocType.VISA, DocType.TRC].map(type => (
-                       <button key={type} onClick={() => setTypeFilter(type as any)} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${typeFilter === type ? 'bg-white text-red-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>{type === 'ALL' ? 'Everything' : type}</button>
-                     ))}
-                  </div>
-                  <button onClick={() => setIsManualModalOpen(true)} className="flex items-center gap-3 px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:bg-emerald-500 active:scale-95 transition-all">
-                    <PlusCircle className="w-4 h-4" /> Create Manual Entry
-                  </button>
-               </div>
-
-               <div className="bg-white rounded-[3.5rem] border-2 border-slate-100 shadow-sm overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead className="bg-slate-50 border-b text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        <tr><th className="px-10 py-8">Citizen Entity</th><th className="px-10 py-8">Reference ID</th><th className="px-10 py-8">Category</th><th className="px-10 py-8">Validity</th><th className="px-10 py-8 text-right">Actions</th></tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {filteredRecords.length > 0 ? filteredRecords.map(rec => (
-                          <tr key={rec.id} className="hover:bg-slate-50 transition-all group">
-                            <td className="px-10 py-8">
-                               <div className="flex items-center gap-5">
-                                  <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-sm"><User className="w-6 h-6" /></div>
-                                  <div><p className="font-black text-sm uppercase text-slate-900 tracking-tight">{rec.fullName}</p><p className="text-[9px] font-bold text-slate-400 font-mono mt-1">{rec.passportNumber}</p></div>
-                               </div>
-                            </td>
-                            <td className="px-10 py-8 font-mono text-xs font-bold text-slate-400">{rec.id}</td>
-                            <td className="px-10 py-8"><span className="text-[9px] font-black uppercase bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">{rec.type}</span></td>
-                            <td className="px-10 py-8"><div className="space-y-1"><p className="text-[10px] font-bold text-slate-900">{rec.issueDate}</p><p className={`text-[9px] font-black uppercase ${new Date(rec.expiryDate) < new Date() ? 'text-red-500' : 'text-emerald-500'}`}>EXP: {rec.expiryDate}</p></div></td>
-                            <td className="px-10 py-8 text-right">
-                               <div className="flex justify-end gap-2">
-                                  <button onClick={() => { setSelectedRecordId(rec.id); setPreviewFile({url: rec.pdfUrl, label: 'Official Scan'}); }} className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-emerald-500 hover:border-emerald-200 transition-all shadow-sm"><Eye className="w-5 h-5" /></button>
-                                  <button onClick={() => handleDeleteRecord(rec.id)} className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-red-500 hover:border-red-200 transition-all shadow-sm"><Trash2 className="w-5 h-5" /></button>
-                               </div>
-                            </td>
-                          </tr>
-                        )) : (<tr><td colSpan={5} className="py-20 text-center"><SearchX className="w-16 h-16 text-slate-100 mx-auto mb-4" /><p className="text-slate-400 font-bold italic">No records found.</p></td></tr>)}
-                      </tbody>
-                    </table>
-                  </div>
-               </div>
-            </div>
-          )}
-
           {/* PAYMENT TAB */}
           {activeTab === 'PAYMENT' && (
             <div className="grid md:grid-cols-2 gap-10 animate-in fade-in duration-300">
@@ -553,7 +619,12 @@ const ManagementConsole: React.FC = () => {
                  <div className="bg-slate-950 rounded-[3rem] p-10 text-white space-y-8">
                     <p className="text-[10px] font-black uppercase text-red-500 tracking-[0.3em]">Decision Console</p>
                     <button onClick={() => handleApprove(selectedApp)} className="w-full py-6 bg-emerald-600 hover:bg-emerald-500 text-white rounded-3xl font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3"><CheckCircle2 className="w-6 h-6" /> Seal & Verify</button>
-                    <button className="w-full py-6 bg-white/5 text-white/40 hover:bg-red-600 hover:text-white rounded-3xl font-black uppercase tracking-widest transition-all border border-white/10 flex items-center justify-center gap-3"><Ban className="w-6 h-6" /> Reject File</button>
+                    <button onClick={async () => {
+                      if(window.confirm("Reject this dossier?")) {
+                        await updateApplication(selectedApp.id, {status: 'Rejected'});
+                        setSelectedAppId(null);
+                      }
+                    }} className="w-full py-6 bg-white/5 text-white/40 hover:bg-red-600 hover:text-white rounded-3xl font-black uppercase tracking-widest transition-all border border-white/10 flex items-center justify-center gap-3"><Ban className="w-6 h-6" /> Reject File</button>
                  </div>
               </div>
             </div>
