@@ -75,7 +75,7 @@ const ManagementConsole: React.FC = () => {
     }, 1000);
   };
 
-  const handleApprove = (app: Application) => {
+  const handleApprove = async (app: Application) => {
     const recordId = `AUTH-${app.type.slice(0,2)}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
     const newRecord: OfficialRecord = {
       id: recordId, 
@@ -94,13 +94,17 @@ const ManagementConsole: React.FC = () => {
       employer: app.details?.employer || 'Govt Verified',
       jobTitle: app.details?.jobTitle || 'Expert'
     };
-    addRecord(newRecord);
-    updateApplication(app.id, { status: 'Approved' });
-    alert(`Success: Dossier ${app.id} verified. New Record ID: ${recordId}`);
-    setSelectedAppId(null);
+    try {
+      await addRecord(newRecord);
+      await updateApplication(app.id, { status: 'Approved' });
+      alert(`Success: Dossier ${app.id} verified. New Record ID: ${recordId}`);
+      setSelectedAppId(null);
+    } catch (err) {
+      alert('Error during approval process.');
+    }
   };
 
-  const handleManualRecordSubmit = (e: React.FormEvent) => {
+  const handleManualRecordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualData.fullName || !manualData.passportNumber) {
       alert('Please fill mandatory fields.');
@@ -112,14 +116,18 @@ const ManagementConsole: React.FC = () => {
       id: recordId,
       authorityReference: 'ADMIN_MANUAL_ENTRY'
     };
-    addRecord(finalRecord);
-    alert('Manual Registry Entry Created Successfully.');
-    setIsManualModalOpen(false);
-    setManualData({
-      type: DocType.WORK_PERMIT, fullName: '', passportNumber: '', nationality: '',
-      dob: '', email: '', phone: '', issueDate: new Date().toISOString().split('T')[0],
-      expiryDate: '', status: 'Verified', pdfUrl: '', employer: '', jobTitle: ''
-    });
+    try {
+      await addRecord(finalRecord);
+      alert('Manual Registry Entry Created Successfully.');
+      setIsManualModalOpen(false);
+      setManualData({
+        type: DocType.WORK_PERMIT, fullName: '', passportNumber: '', nationality: '',
+        dob: '', email: '', phone: '', issueDate: new Date().toISOString().split('T')[0],
+        expiryDate: '', status: 'Verified', pdfUrl: '', employer: '', jobTitle: ''
+      });
+    } catch (err) {
+      alert('Failed to create manual entry.');
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -133,10 +141,14 @@ const ManagementConsole: React.FC = () => {
     }
   };
 
-  const handleDeleteRecord = (id: string) => {
-    if (window.confirm('Are you sure you want to permanently delete this official record? This cannot be undone.')) {
-      deleteRecord(id);
-      addLog('Admin', 'Delete Record', `Registry ID ${id} removed from archives.`);
+  const handleDeleteRecord = async (id: string) => {
+    if (window.confirm('Are you sure you want to permanently delete this official record? This cannot be undone and will be reflected for all users immediately.')) {
+      try {
+        await deleteRecord(id);
+        addLog('Admin', 'Delete Record', `Registry ID ${id} removed from archives.`);
+      } catch (err) {
+        alert('Failed to delete record. Please try again.');
+      }
     }
   };
 
@@ -254,7 +266,6 @@ const ManagementConsole: React.FC = () => {
                   </div>
                 </div>
               </div>
-              {/* Rest of the form... */}
               <div className="pt-8 col-span-full">
                   <button type="submit" className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase tracking-widest hover:bg-emerald-500 shadow-2xl shadow-emerald-100 transition-all active:scale-95 flex items-center justify-center gap-3">
                     <ShieldCheck className="w-6 h-6" /> Commit Record to Registry
@@ -325,7 +336,6 @@ const ManagementConsole: React.FC = () => {
           {/* DASHBOARD TAB */}
           {activeTab === 'DASHBOARD' && (
             <div className="space-y-16 animate-in fade-in duration-500">
-               {/* Clickable Stat Cards for Filtering */}
                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
                   <button 
                     onClick={() => { setTypeFilter('ALL'); setSearchTerm(''); }}
@@ -372,7 +382,6 @@ const ManagementConsole: React.FC = () => {
                          Filtered Dossier Traffic 
                          {typeFilter !== 'ALL' && <span className="ml-2 text-xs font-black text-slate-300">[{typeFilter}]</span>}
                        </h3>
-                       {/* Reset View functionality now clears all filters */}
                        <button 
                          onClick={() => { setTypeFilter('ALL'); setSearchTerm(''); }} 
                          className="text-red-600 text-[10px] font-black uppercase hover:underline tracking-widest transition-all"
@@ -421,7 +430,6 @@ const ManagementConsole: React.FC = () => {
                   </div>
                   
                   <div className="space-y-8">
-                     {/* Revenue Card now acts as a link to Payment Tab */}
                      <button 
                         onClick={() => setActiveTab('PAYMENT')}
                         className="w-full bg-slate-900 rounded-[4rem] p-12 text-white space-y-10 shadow-xl cursor-pointer hover:bg-slate-800 transition-all group text-left relative overflow-hidden"
@@ -470,7 +478,37 @@ const ManagementConsole: React.FC = () => {
                     <PlusCircle className="w-4 h-4" /> Create Manual Entry
                   </button>
                </div>
-               {/* Record table similarly interactive... */}
+
+               <div className="bg-white rounded-[3.5rem] border-2 border-slate-100 shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-50 border-b text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        <tr><th className="px-10 py-8">Citizen Entity</th><th className="px-10 py-8">Reference ID</th><th className="px-10 py-8">Category</th><th className="px-10 py-8">Validity</th><th className="px-10 py-8 text-right">Actions</th></tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredRecords.length > 0 ? filteredRecords.map(rec => (
+                          <tr key={rec.id} className="hover:bg-slate-50 transition-all group">
+                            <td className="px-10 py-8">
+                               <div className="flex items-center gap-5">
+                                  <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-sm"><User className="w-6 h-6" /></div>
+                                  <div><p className="font-black text-sm uppercase text-slate-900 tracking-tight">{rec.fullName}</p><p className="text-[9px] font-bold text-slate-400 font-mono mt-1">{rec.passportNumber}</p></div>
+                               </div>
+                            </td>
+                            <td className="px-10 py-8 font-mono text-xs font-bold text-slate-400">{rec.id}</td>
+                            <td className="px-10 py-8"><span className="text-[9px] font-black uppercase bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">{rec.type}</span></td>
+                            <td className="px-10 py-8"><div className="space-y-1"><p className="text-[10px] font-bold text-slate-900">{rec.issueDate}</p><p className={`text-[9px] font-black uppercase ${new Date(rec.expiryDate) < new Date() ? 'text-red-500' : 'text-emerald-500'}`}>EXP: {rec.expiryDate}</p></div></td>
+                            <td className="px-10 py-8 text-right">
+                               <div className="flex justify-end gap-2">
+                                  <button onClick={() => { setSelectedRecordId(rec.id); setPreviewFile({url: rec.pdfUrl, label: 'Official Scan'}); }} className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-emerald-500 hover:border-emerald-200 transition-all shadow-sm"><Eye className="w-5 h-5" /></button>
+                                  <button onClick={() => handleDeleteRecord(rec.id)} className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-red-500 hover:border-red-200 transition-all shadow-sm"><Trash2 className="w-5 h-5" /></button>
+                               </div>
+                            </td>
+                          </tr>
+                        )) : (<tr><td colSpan={5} className="py-20 text-center"><SearchX className="w-16 h-16 text-slate-100 mx-auto mb-4" /><p className="text-slate-400 font-bold italic">No records found.</p></td></tr>)}
+                      </tbody>
+                    </table>
+                  </div>
+               </div>
             </div>
           )}
 

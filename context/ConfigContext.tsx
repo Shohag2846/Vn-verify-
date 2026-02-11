@@ -52,44 +52,61 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Initial Data Fetch from Supabase
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const { data: appData } = await supabase.from('applications').select('*').order('submissionDate', { ascending: false });
-        const { data: recData } = await supabase.from('records').select('*').order('issueDate', { ascending: false });
-        const { data: logData } = await supabase.from('logs').select('*').order('timestamp', { ascending: false });
-        const { data: cfgData } = await supabase.from('settings').select('value').eq('key', 'site_config').single();
+  // Initial Data Fetch
+  const refreshAllData = async () => {
+    try {
+      const { data: appData } = await supabase.from('applications').select('*').order('submissionDate', { ascending: false });
+      const { data: recData } = await supabase.from('records').select('*').order('issueDate', { ascending: false });
+      const { data: logData } = await supabase.from('logs').select('*').order('timestamp', { ascending: false });
+      const { data: cfgData } = await supabase.from('settings').select('value').eq('key', 'site_config').single();
 
-        if (appData) setApplications(appData);
-        if (recData) setRecords(recData);
-        if (logData) setLogs(logData);
-        if (cfgData) setConfig(cfgData.value);
-      } catch (error) {
-        console.error('Supabase Sync Error:', error);
-      } finally {
-        setIsLoading(false);
-      }
+      if (appData) setApplications(appData);
+      if (recData) setRecords(recData);
+      if (logData) setLogs(logData);
+      if (cfgData) setConfig(cfgData.value);
+    } catch (error) {
+      console.error('Supabase Fetch Error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshAllData();
+
+    // REAL-TIME SUBSCRIPTION: দয়া করে লক্ষ্য করুন, এই পার্টটি ডিলিট সমস্যার সমাধান করবে
+    const recordsSubscription = supabase
+      .channel('public:records')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'records' }, () => {
+        refreshAllData(); // যেকোনো পরিবর্তনে ডাটা রিফ্রেশ হবে
+      })
+      .subscribe();
+
+    const appsSubscription = supabase
+      .channel('public:applications')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'applications' }, () => {
+        refreshAllData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(recordsSubscription);
+      supabase.removeChannel(appsSubscription);
     };
-    fetchData();
   }, []);
 
   const addLog = async (user: string, action: string, details: string) => {
     const newLog: AuditLog = { id: `log_${Date.now()}`, timestamp: new Date().toLocaleString(), user, action, details };
-    setLogs(prev => [newLog, ...prev]);
     await supabase.from('logs').insert([newLog]);
   };
 
   const updateConfig = async (newConfig: AppConfig) => {
-    setConfig(newConfig);
     await supabase.from('settings').upsert({ key: 'site_config', value: newConfig });
     await addLog('Admin', 'Update System Config', 'Settings updated globally.');
   };
 
   const updateServiceConfig = async (type: DocType, svc: ServiceConfig) => {
     const newConfig = { ...config, services: { ...config.services, [type]: svc } };
-    setConfig(newConfig);
     await supabase.from('settings').upsert({ key: 'site_config', value: newConfig });
     await addLog('Admin', 'Update Service Protocol', `Metadata for ${type} updated.`);
   };
@@ -99,49 +116,46 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       ...config,
       paymentMethods: config.paymentMethods.map(m => m.id === id ? { ...m, ...updates } : m)
     };
-    setConfig(newConfig);
     await supabase.from('settings').upsert({ key: 'site_config', value: newConfig });
     await addLog('Admin', 'Update Payment System', `Modified gateway settings for: ${id}`);
   };
 
   const addApplication = async (app: Application) => {
-    setApplications(prev => [app, ...prev]);
     await supabase.from('applications').insert([app]);
     await addLog('System', 'New Dossier Filed', `ID: ${app.id} (${app.type})`);
   };
 
   const updateApplication = async (id: string, updates: Partial<Application>) => {
-    const updatedApps = applications.map(app => {
-      if (app.id === id) {
-        const newHistory = [...app.history];
-        if (updates.status && updates.status !== app.status) {
-          newHistory.push({ date: new Date().toLocaleString(), action: `Status Changed to ${updates.status}`, by: 'Administrator' });
-        }
-        return { ...app, ...updates, history: newHistory };
-      }
-      return app;
-    });
-    setApplications(updatedApps);
-    const updatedApp = updatedApps.find(a => a.id === id);
-    if (updatedApp) await supabase.from('applications').update(updatedApp).eq('id', id);
+    const currentApp = applications.find(a => a.id === id);
+    if (!currentApp) return;
+
+    const newHistory = [...(currentApp.history || [])];
+    if (updates.status && updates.status !== currentApp.status) {
+      newHistory.push({ date: new Date().toLocaleString(), action: `Status Changed to ${updates.status}`, by: 'Administrator' });
+    }
+    
+    const updatedPayload = { ...currentApp, ...updates, history: newHistory };
+    await supabase.from('applications').update(updatedPayload).eq('id', id);
     await addLog('Admin', 'Update Application', `Dossier ID: ${id}`);
   };
 
   const deleteApplication = async (id: string) => {
-    setApplications(prev => prev.filter(app => app.id !== id));
     await supabase.from('applications').delete().eq('id', id);
     await addLog('Admin', 'Delete Application', `Dossier ID: ${id}`);
   };
 
   const addRecord = async (record: OfficialRecord) => {
-    setRecords(prev => [record, ...prev]);
     await supabase.from('records').insert([record]);
     await addLog('Admin', 'Issue Official Record', `Reference: ${record.id}`);
   };
 
   const deleteRecord = async (id: string) => {
-    setRecords(prev => prev.filter(r => r.id !== id));
-    await supabase.from('records').delete().eq('id', id);
+    // ডাটাবেস থেকে ডিলিট করা হচ্ছে
+    const { error } = await supabase.from('records').delete().eq('id', id);
+    if (error) {
+      console.error('Delete error:', error);
+      throw error;
+    }
     await addLog('Admin', 'Delete Official Record', `Reference: ${id}`);
   };
 
