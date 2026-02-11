@@ -57,8 +57,11 @@ const WorkPermit: React.FC<Props> = ({ language }) => {
   const handleFileUpload = (field: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setFormData(prev => ({ ...prev, [field]: url }));
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, [field]: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -104,7 +107,7 @@ const WorkPermit: React.FC<Props> = ({ language }) => {
 
   return (
     <div className="max-w-screen-xl mx-auto px-6 py-16 space-y-24 animate-in fade-in duration-700">
-      {/* Work Permit Detailed Description Section */}
+      {/* Description Section */}
       <section className="bg-white rounded-[3rem] border border-slate-100 shadow-xl overflow-hidden">
         <div className="bg-red-600 p-8 md:p-12 text-white text-center space-y-4">
           <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-tight">
