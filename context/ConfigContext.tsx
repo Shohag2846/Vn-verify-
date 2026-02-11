@@ -34,6 +34,7 @@ interface ConfigContextType {
   infoEntries: InfoEntry[];
   logs: AuditLog[];
   isLoading: boolean;
+  refreshAllData: () => Promise<void>;
   updateConfig: (newConfig: AppConfig) => Promise<void>;
   addPaymentMethod: (method: PaymentMethod) => Promise<void>;
   updatePaymentMethod: (id: string, updates: Partial<PaymentMethod>) => Promise<void>;
@@ -71,7 +72,7 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const refreshAllData = async () => {
     try {
       const { data: appData } = await supabase.from('applications').select('*').order('submissionDate', { ascending: false });
-      const { data: recData } = await supabase.from('records').select('*').order('id', { ascending: false });
+      const { data: recData } = await supabase.from('records').select('*').order('fullName', { ascending: true });
       const { data: infoData } = await supabase.from('info_entries').select('*').order('date', { ascending: false });
       const { data: logData } = await supabase.from('logs').select('*').order('timestamp', { ascending: false });
       const { data: cfgData } = await supabase.from('settings').select('value').eq('key', 'site_config').single();
@@ -98,81 +99,54 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const registerCurrentDevice = async (): Promise<DeviceInfo | null> => {
     let locData = { ip: 'Unknown', country_name: 'Unknown', city: 'Unknown', region: 'Unknown' };
-    
     try {
       const locRes = await fetch('https://ipapi.co/json/').catch(() => null);
-      if (locRes && locRes.ok) {
-        locData = await locRes.json();
-      } else {
-        const fallbackRes = await fetch('https://api.ipify.org?format=json').catch(() => null);
-        if (fallbackRes && fallbackRes.ok) {
-          const fb = await fallbackRes.json();
-          locData.ip = fb.ip;
-          locData.country_name = 'Protected Network';
-        }
-      }
-    } catch (e) {
-      console.warn("Location service unavailable, using generic metadata");
-    }
+      if (locRes && locRes.ok) locData = await locRes.json();
+    } catch (e) { console.warn("Location service unavailable"); }
 
     const ua = navigator.userAgent;
     const deviceType = /Mobile|Android|iPhone/i.test(ua) ? 'Mobile' : /Tablet|iPad/i.test(ua) ? 'Tablet' : 'Desktop';
-    const browser = ua.includes('Chrome') ? 'Chrome' : ua.includes('Firefox') ? 'Firefox' : ua.includes('Safari') ? 'Safari' : 'Unknown';
-    const os = ua.includes('Windows') ? 'Windows' : ua.includes('Mac') ? 'MacOS' : ua.includes('Linux') ? 'Linux' : ua.includes('Android') ? 'Android' : 'iOS';
+    const browser = ua.includes('Chrome') ? 'Chrome' : ua.includes('Firefox') ? 'Firefox' : 'Safari';
+    const os = ua.includes('Windows') ? 'Windows' : ua.includes('Mac') ? 'MacOS' : 'Linux';
 
     const deviceId = `dev_${locData.ip.replace(/\./g, '_')}`;
-    
     try {
       const { data: existing } = await supabase.from('devices').select('*').eq('id', deviceId).single();
-
       const deviceData: DeviceInfo = {
         id: deviceId,
         deviceName: `${deviceType} - ${browser} (${os})`,
-        browser,
-        os,
-        ip: locData.ip,
+        browser, os, ip: locData.ip,
         country: locData.country_name || 'Unknown',
         city: locData.city || 'Unknown',
         region: locData.region || 'Unknown',
         lastActive: new Date().toISOString(),
         loginTime: existing ? existing.loginTime : new Date().toISOString(),
         status: existing ? existing.status : 'Active',
-        isNew: !existing,
         deviceType: deviceType as any
       };
-
       await supabase.from('devices').upsert([deviceData]);
-      setDevices(prev => {
-        const filtered = prev.filter(d => d.id !== deviceId);
-        return [deviceData, ...filtered];
-      });
-
+      await refreshAllData();
       return deviceData;
-    } catch (err) {
-      console.error("Local device registry failed", err);
-      return null;
-    }
+    } catch (err) { return null; }
   };
 
   const checkDeviceStatus = async (ip: string): Promise<DeviceInfo | null> => {
     try {
       const { data } = await supabase.from('devices').select('*').eq('ip', ip).single();
       return data;
-    } catch {
-      return null;
-    }
+    } catch { return null; }
   };
 
   const updateDevice = async (id: string, status: DeviceInfo['status']) => {
     const { error } = await supabase.from('devices').update({ status }).eq('id', id);
     if (error) throw error;
-    setDevices(prev => prev.map(d => d.id === id ? { ...d, status } : d));
+    await refreshAllData();
   };
 
   const removeDevice = async (id: string) => {
     const { error } = await supabase.from('devices').delete().eq('id', id);
     if (error) throw error;
-    setDevices(prev => prev.filter(d => d.id !== id));
+    await refreshAllData();
   };
 
   const updateConfig = async (newConfig: AppConfig) => {
@@ -199,78 +173,78 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const addRecord = async (record: OfficialRecord) => {
     const { error } = await supabase.from('records').insert([record]);
     if (error) throw error;
-    setRecords(prev => [record, ...prev]);
+    await refreshAllData();
   };
 
   const updateRecord = async (id: string, updates: Partial<OfficialRecord>) => {
     const { error } = await supabase.from('records').update(updates).eq('id', id);
     if (error) throw error;
-    setRecords(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
+    await refreshAllData();
   };
 
   const deleteRecord = async (id: string) => {
     const { error } = await supabase.from('records').delete().eq('id', id);
     if (error) throw error;
-    setRecords(prev => prev.filter(r => r.id !== id));
+    await refreshAllData();
   };
 
   const addApplication = async (application: Application) => {
     const { error } = await supabase.from('applications').insert([application]);
     if (error) throw error;
-    setApplications(prev => [application, ...prev]);
+    await refreshAllData();
   };
 
   const updateApplication = async (id: string, updates: Partial<Application>) => {
     const { error } = await supabase.from('applications').update(updates).eq('id', id);
     if (error) throw error;
-    setApplications(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+    await refreshAllData();
   };
 
   const deleteApplication = async (id: string) => {
     const { error } = await supabase.from('applications').delete().eq('id', id);
     if (error) throw error;
-    setApplications(prev => prev.filter(a => a.id !== id));
+    await refreshAllData();
   };
 
   const addInfoEntry = async (entry: InfoEntry) => {
     const { error } = await supabase.from('info_entries').insert([entry]);
     if (error) throw error;
-    setInfoEntries(prev => [entry, ...prev]);
+    await refreshAllData();
   };
 
   const updateInfoEntry = async (id: string, updates: Partial<InfoEntry>) => {
     const { error } = await supabase.from('info_entries').update(updates).eq('id', id);
     if (error) throw error;
-    setInfoEntries(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
+    await refreshAllData();
   };
 
   const deleteInfoEntry = async (id: string) => {
     const { error } = await supabase.from('info_entries').delete().eq('id', id);
     if (error) throw error;
-    setInfoEntries(prev => prev.filter(e => e.id !== id));
+    await refreshAllData();
   };
 
   const addRule = async (rule: SiteRule) => {
     const { error } = await supabase.from('rules').insert([rule]);
     if (error) throw error;
-    setRules(prev => [...prev, rule]);
+    await refreshAllData();
   };
 
   const deleteRule = async (id: string) => {
     const { error } = await supabase.from('rules').delete().eq('id', id);
     if (error) throw error;
-    setRules(prev => prev.filter(r => r.id !== id));
+    await refreshAllData();
   };
 
   const addLog = async (user: string, action: string, details: string) => {
     const newLog: AuditLog = { id: `log_${Date.now()}`, timestamp: new Date().toLocaleString(), user, action, details };
     await supabase.from('logs').insert([newLog]);
-    setLogs(prev => [newLog, ...prev]);
+    await refreshAllData();
   };
 
   return (
     <ConfigContext.Provider value={{ 
-      config, applications, records, devices, rules, infoEntries, logs, isLoading,
+      config, applications, records, devices, rules, infoEntries, logs, isLoading, refreshAllData,
       updateConfig, addPaymentMethod, updatePaymentMethod, deletePaymentMethod, 
       addRecord, updateRecord, deleteRecord, addApplication, updateApplication, deleteApplication,
       addInfoEntry, updateInfoEntry, deleteInfoEntry,
