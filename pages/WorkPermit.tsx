@@ -104,7 +104,7 @@ const WorkPermit: React.FC<Props> = ({ language }) => {
 
   return (
     <div className="max-w-screen-xl mx-auto px-6 py-16 space-y-24 animate-in fade-in duration-700">
-      {/* Work Permit Detailed Description Section - Updated with specific text */}
+      {/* Work Permit Detailed Description Section */}
       <section className="bg-white rounded-[3rem] border border-slate-100 shadow-xl overflow-hidden">
         <div className="bg-red-600 p-8 md:p-12 text-white text-center space-y-4">
           <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-tight">
@@ -184,6 +184,10 @@ const WorkPermit: React.FC<Props> = ({ language }) => {
                     <input required value={formData.passportNumber} onChange={e => setFormData({...formData, passportNumber: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 p-5 rounded-3xl text-slate-900 font-bold outline-none focus:border-red-600 uppercase" placeholder="B1234567" />
                   </div>
                   <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase ml-2">{t.nationality[language]}</label>
+                    <input required value={formData.nationality} onChange={e => setFormData({...formData, nationality: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 p-5 rounded-3xl text-slate-900 font-bold outline-none focus:border-red-600 uppercase" placeholder="e.g. Bangladesh" />
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase ml-2">{t.dob[language]}</label>
                     <input required type="date" value={formData.dob} onChange={e => setFormData({...formData, dob: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 p-5 rounded-3xl text-slate-900 font-bold outline-none focus:border-red-600" />
                   </div>
@@ -197,7 +201,7 @@ const WorkPermit: React.FC<Props> = ({ language }) => {
                   </div>
                 </div>
                 <div className="flex justify-end pt-8">
-                  <button onClick={nextStep} disabled={!formData.fullName || !formData.passportNumber || !formData.dob} className="px-12 py-5 bg-red-600 text-white font-black uppercase tracking-widest rounded-full shadow-xl hover:bg-red-700 disabled:opacity-30 flex items-center gap-2 transition-all">Next <ChevronRight className="w-5 h-5" /></button>
+                  <button onClick={nextStep} disabled={!formData.fullName || !formData.passportNumber || !formData.dob || !formData.nationality} className="px-12 py-5 bg-red-600 text-white font-black uppercase tracking-widest rounded-full shadow-xl hover:bg-red-700 disabled:opacity-30 flex items-center gap-2 transition-all">Next <ChevronRight className="w-5 h-5" /></button>
                 </div>
               </div>
             )}

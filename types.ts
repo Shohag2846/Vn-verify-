@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'vi';
 
 export enum DocType {
@@ -37,6 +38,13 @@ export interface Application {
   // Files - Specifically mapped for the system
   passport_file?: string;
   photo_file?: string;
+  /**
+   * Added properties below to resolve TS errors in form components
+   * which track these uploads as top-level properties of the application state.
+   */
+  visa_file?: string;
+  trc_file?: string;
+  payment_receipt_file?: string;
   support_files: string[];
   // Metadata
   submissionDate: string;

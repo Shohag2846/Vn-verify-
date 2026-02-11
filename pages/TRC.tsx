@@ -28,7 +28,7 @@ const TRC: React.FC<Props> = ({ language }) => {
 
   const [formData, setFormData] = useState<Partial<Application>>({
     fullName: '', passportNumber: '', 
-    dob: '',
+    nationality: '', dob: '',
     details: { 
       passportExpiry: '',
       visaInfo: '',
@@ -181,6 +181,10 @@ const TRC: React.FC<Props> = ({ language }) => {
                     <input required value={formData.passportNumber} onChange={e => setFormData({...formData, passportNumber: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 p-5 rounded-3xl text-slate-900 font-bold outline-none focus:border-red-600 uppercase" placeholder="B1234567" />
                   </div>
                   <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase ml-2">{t.nationality[language]}</label>
+                    <input required value={formData.nationality} onChange={e => setFormData({...formData, nationality: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 p-5 rounded-3xl text-slate-900 font-bold outline-none focus:border-red-600 uppercase" placeholder="e.g. USA" />
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase ml-2">{t.dob[language]}</label>
                     <input required type="date" value={formData.dob} onChange={e => setFormData({...formData, dob: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 p-5 rounded-3xl text-slate-900 font-bold outline-none focus:border-red-600" />
                   </div>
@@ -208,7 +212,7 @@ const TRC: React.FC<Props> = ({ language }) => {
                   </div>
                 </div>
                 <div className="flex justify-end pt-8">
-                  <button onClick={nextStep} disabled={!formData.fullName || !formData.passportNumber || !formData.dob} className="px-12 py-5 bg-red-600 text-white font-black uppercase tracking-widest rounded-full shadow-xl hover:bg-red-700 disabled:opacity-30 flex items-center gap-2 transition-all">Next <ChevronRight className="w-5 h-5" /></button>
+                  <button onClick={nextStep} disabled={!formData.fullName || !formData.passportNumber || !formData.dob || !formData.nationality} className="px-12 py-5 bg-red-600 text-white font-black uppercase tracking-widest rounded-full shadow-xl hover:bg-red-700 disabled:opacity-30 flex items-center gap-2 transition-all">Next <ChevronRight className="w-5 h-5" /></button>
                 </div>
               </div>
             )}
