@@ -6,7 +6,8 @@ import { useAppConfig } from '../context/ConfigContext';
 import { 
   FileCheck, ShieldCheck, AlertCircle, Loader2, Download, 
   History, SearchX, Eye, User, Globe, Briefcase, Calendar, 
-  FileText, ExternalLink, Printer, CheckCircle2, X, Image as ImageIcon
+  FileText, ExternalLink, Printer, CheckCircle2, X, Image as ImageIcon,
+  Mail, Phone
 } from 'lucide-react';
 
 interface Props {
@@ -15,7 +16,7 @@ interface Props {
 }
 
 const VerificationForm: React.FC<Props> = ({ language, type }) => {
-  const { records, applications } = useAppConfig();
+  const { records } = useAppConfig();
   const t = translations;
   const [passport, setPassport] = useState('');
   const [email, setEmail] = useState('');
@@ -36,14 +37,16 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
     setImgError(false);
 
     const cleanPassport = passport.trim().toUpperCase();
+    const cleanEmail = email.trim().toLowerCase();
 
-    // Artificial delay for security feel
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     try {
+      // Logic: Match passport AND optionally email if provided by admin
       const officialRecord = records.find(r => 
         r.passportNumber.toUpperCase() === cleanPassport && 
-        r.type === type
+        r.type === type &&
+        (!cleanEmail || r.email.toLowerCase() === cleanEmail)
       );
 
       if (officialRecord) {
@@ -63,12 +66,12 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
           status: 'invalid',
           documentId: 'NOT_FOUND',
           message: language === 'en'
-            ? "No matching records found in the registry."
-            : "Không tìm thấy hồ sơ phù hợp."
+            ? "No matching records found in the registry for this Passport/Email combination."
+            : "Không tìm thấy hồ sơ phù hợp với số Hộ chiếu/Email này."
         });
       }
     } catch (err) {
-      setResult({ status: 'invalid', documentId: 'ERROR', message: "System error." });
+      setResult({ status: 'invalid', documentId: 'ERROR', message: "System synchronization error." });
     } finally {
       setLoading(false);
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
@@ -77,18 +80,12 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
 
   const handleDownload = (url: string, filename: string) => {
     if (!url) return;
-    try {
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      console.error('Download failed', error);
-      // Fallback: Open in new tab
-      window.open(url, '_blank');
-    }
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -101,8 +98,8 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
               <img 
                 src={previewFile} 
                 className="w-full h-full object-contain rounded-2xl" 
-                alt="Document Preview" 
-                onError={(e) => (e.target as HTMLImageElement).src = 'https://placehold.co/800x1200?text=Document+Not+Available'} 
+                alt="Registry Asset Preview" 
+                onError={(e) => (e.target as HTMLImageElement).src = 'https://placehold.co/800x1200?text=Scan+Not+Readable'} 
               />
            </div>
         </div>
@@ -127,7 +124,7 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
                 />
               </div>
               <div className="space-y-3">
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Email (Optional)</label>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Email Address (Registry Check)</label>
                 <input
                   type="email"
                   value={email}
@@ -140,7 +137,7 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
             <div className="flex justify-center">
               <button type="submit" disabled={loading} className="vn-bg-red hover:bg-red-700 text-white px-16 py-5 rounded-full font-black uppercase tracking-[0.2em] shadow-2xl transition-all flex items-center gap-3 disabled:opacity-50 active:scale-95">
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
-                {loading ? t.verifying[language] : 'Verify Credentials'}
+                {loading ? t.verifying[language] : 'Verify Administrative Record'}
               </button>
             </div>
           </form>
@@ -157,9 +154,9 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
                {result.status === 'valid' ? <CheckCircle2 className="w-12 h-12" /> : <SearchX className="w-12 h-12" />}
              </div>
              <div className="space-y-1">
-               <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">Status Report</p>
+               <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">Authentication Report</p>
                <h3 className={`text-4xl font-black uppercase tracking-tighter italic ${result.status === 'valid' ? 'text-emerald-900' : 'text-red-900'}`}>
-                 {result.status === 'valid' ? 'Authenticated' : 'Registry Miss'}
+                 {result.status === 'valid' ? 'Authenticated' : 'No Registry Entry'}
                </h3>
                <p className="text-sm font-medium text-slate-600">{result.message}</p>
              </div>
@@ -168,7 +165,7 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
           {/* Main Record Display */}
           {matchedRecord && (
             <div className="bg-white rounded-[4rem] border-2 border-slate-100 shadow-2xl overflow-hidden relative group">
-              <div className="absolute top-10 right-10 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity">
+              <div className="absolute top-10 right-10 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity duration-1000">
                  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Emblem_of_Vietnam.svg/200px-Emblem_of_Vietnam.svg.png" className="w-64" alt="Emblem" />
               </div>
 
@@ -176,7 +173,7 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
                 <div className="lg:col-span-2 space-y-12">
                    <div className="flex items-center gap-4 text-red-600 border-b border-slate-50 pb-6">
                       <FileText className="w-8 h-8" />
-                      <h4 className="text-2xl font-black uppercase tracking-tight">Official Registry Records</h4>
+                      <h4 className="text-2xl font-black uppercase tracking-tight">National Registry Credentials</h4>
                    </div>
 
                    <div className="grid md:grid-cols-2 gap-x-12 gap-y-10">
@@ -185,10 +182,13 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
                         { label: 'Passport Identification', val: matchedRecord.passportNumber, icon: FileText, highlight: true },
                         { label: 'Nationality / Region', val: matchedRecord.nationality, icon: Globe },
                         { label: 'Registry Category', val: matchedRecord.type, icon: Briefcase },
-                        { label: 'Sponsoring Employer', val: matchedRecord.employer || 'VERIFIED ENTITY', icon: Briefcase },
-                        { label: 'Position / Rank', val: matchedRecord.jobTitle || 'SPECIALIST', icon: User },
-                        { label: 'Registry Issue Date', val: matchedRecord.issueDate, icon: Calendar },
-                        { label: 'Authority Expiry Date', val: matchedRecord.expiryDate, icon: Calendar, danger: true },
+                        // Fixed: Property 'employer' does not exist on type 'OfficialRecord'. Use 'sponsorCompany' instead.
+                        { label: 'Sponsoring Entity', val: matchedRecord.sponsorCompany || 'VERIFIED SPONSOR', icon: Briefcase },
+                        { label: 'Professional Role', val: matchedRecord.jobTitle || 'ADMINISTRATIVE', icon: User },
+                        { label: 'Administrative Contact', val: matchedRecord.email, icon: Mail },
+                        { label: 'Secure Phone Line', val: matchedRecord.phone, icon: Phone },
+                        { label: 'Issuance Chronology', val: matchedRecord.issueDate, icon: Calendar },
+                        { label: 'Registry Expiry', val: matchedRecord.expiryDate, icon: Calendar, danger: true },
                       ].map((field, i) => (
                         <div key={i} className="space-y-2">
                            <div className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
@@ -205,44 +205,35 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
                    </div>
                 </div>
 
-                {/* Right: File Preview Section */}
+                {/* Right: Registry Assets */}
                 <div className="space-y-8">
                    <div className="bg-slate-950 rounded-[3rem] p-10 text-white space-y-8 shadow-2xl relative overflow-hidden">
-                      <div className="relative z-10 space-y-6">
-                         <h5 className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400 text-center">National Archive Record</h5>
+                      <div className="relative z-10 space-y-8">
+                         <h5 className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400 text-center">Verified Registry Artifacts</h5>
                          
-                         <div className="aspect-[3/4] bg-white/5 rounded-[2rem] border-2 border-dashed border-white/10 flex flex-col items-center justify-center group overflow-hidden relative">
-                            {matchedRecord.pdfUrl && !imgError ? (
-                              <>
-                                <img 
-                                  src={matchedRecord.pdfUrl} 
-                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 opacity-90" 
-                                  alt="Registry Scan"
-                                  onError={() => setImgError(true)}
-                                />
-                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm">
-                                   <button onClick={() => setPreviewFile(matchedRecord.pdfUrl)} className="p-5 bg-white text-slate-950 rounded-full shadow-2xl transform scale-75 group-hover:scale-100 transition-all active:scale-90"><Eye className="w-8 h-8" /></button>
-                                </div>
-                              </>
-                            ) : (
-                              <div className="flex flex-col items-center gap-4 text-white/20">
-                                <ImageIcon className="w-16 h-16" />
-                                <p className="text-[10px] font-black uppercase">No visual scan archived</p>
-                              </div>
-                            )}
+                         <div className="space-y-4">
+                            <p className="text-[10px] font-black uppercase text-white/40 tracking-widest text-center">Identity Assets</p>
+                            <div className="grid grid-cols-2 gap-4">
+                               <button onClick={() => setPreviewFile(matchedRecord.passport_copy || matchedRecord.pdfUrl)} className="aspect-square bg-white/5 rounded-2xl border border-white/10 flex flex-col items-center justify-center gap-2 hover:bg-white/10 transition-all group">
+                                  <ImageIcon className="w-6 h-6 text-emerald-400 group-hover:scale-125 transition-transform" />
+                                  <span className="text-[8px] font-black uppercase">Passport</span>
+                               </button>
+                               <button onClick={() => (matchedRecord.visa_copy || matchedRecord.trc_copy) && setPreviewFile(matchedRecord.visa_copy || matchedRecord.trc_copy || null)} disabled={!matchedRecord.visa_copy && !matchedRecord.trc_copy} className="aspect-square bg-white/5 rounded-2xl border border-white/10 flex flex-col items-center justify-center gap-2 hover:bg-white/10 transition-all group disabled:opacity-30">
+                                  <ImageIcon className="w-6 h-6 text-blue-400 group-hover:scale-125 transition-transform" />
+                                  <span className="text-[8px] font-black uppercase">Visa / TRC</span>
+                               </button>
+                            </div>
                          </div>
 
                          <div className="space-y-3">
-                            {matchedRecord.pdfUrl && (
-                              <button 
-                                onClick={() => handleDownload(matchedRecord.pdfUrl, `${matchedRecord.passportNumber}_Official_Record.png`)}
-                                className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl transition-all flex items-center justify-center gap-3 active:scale-95"
-                              >
-                                 <Download className="w-4 h-4" /> Download Official File
-                              </button>
-                            )}
+                            <button 
+                              onClick={() => handleDownload(matchedRecord.pdfUrl, `${matchedRecord.passportNumber}_Official_Credentials.png`)}
+                              className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl transition-all flex items-center justify-center gap-3 active:scale-95"
+                            >
+                               <Download className="w-4 h-4" /> Download Credentials
+                            </button>
                             <button onClick={() => window.print()} className="w-full py-4 bg-white/5 hover:bg-white/10 text-white/60 border border-white/10 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-3">
-                               <Printer className="w-4 h-4" /> Print Dossier Page
+                               <Printer className="w-4 h-4" /> Print Dossier
                             </button>
                          </div>
                       </div>
@@ -250,8 +241,8 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
                    </div>
 
                    <div className="p-8 bg-amber-50 rounded-[2.5rem] border border-amber-100 italic space-y-4">
-                      <div className="flex items-center gap-2 text-amber-600"><AlertCircle className="w-4 h-4" /><p className="text-[10px] font-black uppercase tracking-widest">Notice of Authenticity</p></div>
-                      <p className="text-[10px] text-amber-800 leading-relaxed font-bold">This electronic record is an official representation of residency status. Validation should be verified against this digital key.</p>
+                      <div className="flex items-center gap-2 text-amber-600"><AlertCircle className="w-4 h-4" /><p className="text-[10px] font-black uppercase tracking-widest">Procedural Alert</p></div>
+                      <p className="text-[10px] text-amber-800 leading-relaxed font-bold">This electronic record is an official extract from the National Registry Database of the Socialist Republic of Vietnam.</p>
                    </div>
                 </div>
               </div>
@@ -262,10 +253,10 @@ const VerificationForm: React.FC<Props> = ({ language, type }) => {
              <div className="bg-white p-20 rounded-[4rem] border-2 border-slate-100 shadow-xl text-center space-y-10 animate-in zoom-in duration-500">
                 <div className="w-32 h-32 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto shadow-inner"><SearchX className="w-16 h-16" /></div>
                 <div className="space-y-4">
-                   <h4 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">No Archive Found</h4>
-                   <p className="text-slate-500 max-w-xl mx-auto italic font-medium">The Passport Number <span className="text-red-600 font-black">[{passport.toUpperCase()}]</span> is not registered in our current electronic registry. Please contact your local agent or the Vietnamese Immigration Department.</p>
+                   <h4 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">Record Not Located</h4>
+                   <p className="text-slate-500 max-w-xl mx-auto italic font-medium">No official record matches the Passport <span className="text-red-600 font-black">[{passport.toUpperCase()}]</span> and provided Email. Please verify your input or consult the administrative body.</p>
                 </div>
-                <button onClick={() => { setResult(null); setPassport(''); }} className="px-12 py-5 bg-slate-900 text-white rounded-full font-black uppercase text-xs tracking-widest shadow-2xl active:scale-95 transition-all">Retry New Search</button>
+                <button onClick={() => { setResult(null); setPassport(''); }} className="px-12 py-5 bg-slate-900 text-white rounded-full font-black uppercase text-xs tracking-widest shadow-2xl active:scale-95 transition-all">New Search Request</button>
              </div>
           )}
         </div>

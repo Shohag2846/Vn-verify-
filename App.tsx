@@ -1,9 +1,10 @@
+
 import React, { useState } from 'react';
 import { HashRouter, Routes, Route, Link } from 'react-router-dom';
 import Header from './components/Header';
 import InfoBar from './components/InfoBar';
 import Navbar from './components/Navbar';
-import AgreementOverlay from './components/AgreementOverlay';
+import AgreementOverlay from './pages/AgreementOverlay';
 import Home from './pages/Home';
 import AboutVietnam from './pages/AboutVietnam';
 import Government from './pages/Government';
@@ -14,6 +15,7 @@ import TRC from './pages/TRC';
 import Support from './pages/Support';
 import News from './pages/News';
 import Resources from './pages/Resources';
+import InformationPage from './pages/InformationPage';
 import ManagementConsole from './pages/ManagementConsole';
 import { Language, DocType } from './types';
 import { translations } from './i18n';
@@ -74,6 +76,7 @@ const App: React.FC = () => {
               <Route path="/about" element={<AboutVietnam language={language} />} />
               <Route path="/government" element={<Government language={language} />} />
               <Route path="/pm" element={<PrimeMinister language={language} />} />
+              <Route path="/information" element={<InformationPage language={language} />} />
               <Route path="/news" element={<News language={language} />} />
               <Route path="/resources" element={<Resources language={language} />} />
               <Route path="/work-permit" element={<WorkPermit language={language} />} />

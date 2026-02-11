@@ -1,634 +1,723 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAppConfig } from '../context/ConfigContext';
-import { DocType, Application, OfficialRecord } from '../types';
+import { DocType, Application, PaymentMethod, InfoEntry, InfoCategory, DeviceInfo } from '../types';
 import { 
-  LayoutDashboard, Database, CreditCard, Info, Cpu, LogOut, Search, 
-  SearchX, Eye, FileText, CheckCircle2, ChevronRight, X, FileSearch, 
-  Camera, Check, Ban, Banknote, Loader2, Copy, History, Download, ShieldCheck, 
-  Settings, Zap, AlertTriangle, BarChart3, User, Briefcase, Globe, Landmark, Filter,
-  PlusCircle, Trash2, ExternalLink, Upload, RefreshCcw, Pencil
+  LayoutDashboard, Database, CreditCard, Monitor, LogOut, Search, 
+  X, CheckCircle2, Eye, Trash2, Pencil, PlusCircle,
+  ShieldCheck, Banknote, User, Globe, Briefcase, Calendar, 
+  Loader2, Image as ImageIcon, FileText, AlertCircle, Phone, 
+  Mail, Save, ShieldAlert, UserCheck, Download, Printer,
+  ChevronRight, ExternalLink, Clock, Plus, Zap, Ban, ShieldX,
+  History, Laptop, Tablet, Smartphone, HardDrive, Filter, 
+  QrCode, Coins, Landmark, Bell, FilePlus, Upload
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 
-type AdminTab = 'DASHBOARD' | 'RECORD' | 'PAYMENT' | 'INFORMATION' | 'DEVICE';
+type AdminTab = 'DASHBOARD' | 'APPLICATIONS' | 'REGISTRY' | 'PAYMENT' | 'INFORMATION' | 'DEVICE';
 
 const ManagementConsole: React.FC = () => {
   const { 
-    applications, records, logs, isLoading,
-    updateApplication, addRecord, updateRecord, deleteRecord, addLog 
+    applications, isLoading, config, infoEntries, devices,
+    addApplication, updateApplication, deleteApplication,
+    addPaymentMethod, updatePaymentMethod, deletePaymentMethod,
+    addInfoEntry, updateInfoEntry, deleteInfoEntry,
+    registerCurrentDevice, checkDeviceStatus, updateDevice, removeDevice, addLog
   } = useAppConfig();
   
   const [isAuth, setIsAuth] = useState(false);
   const [activeTab, setActiveTab] = useState<AdminTab>('DASHBOARD');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
-  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
-  const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [previewFile, setPreviewFile] = useState<{url: string, label: string} | null>(null);
-  const [typeFilter, setTypeFilter] = useState<DocType | 'ALL'>('ALL');
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Application View States
+  const [appFilter, setAppFilter] = useState<DocType | 'ALL'>('ALL');
+  const [selectedApp, setSelectedApp] = useState<Application | null>(null);
+  const [previewFile, setPreviewFile] = useState<string | null>(null);
 
-  // Manual & Edit Form State
-  const [manualData, setManualData] = useState<Partial<OfficialRecord>>({
-    type: DocType.WORK_PERMIT,
-    fullName: '',
-    passportNumber: '',
-    nationality: '',
-    dob: '',
-    email: '',
-    phone: '',
-    issueDate: new Date().toISOString().split('T')[0],
-    expiryDate: '',
-    status: 'Verified',
-    pdfUrl: '',
-    employer: '',
-    jobTitle: ''
-  });
+  // Registry Form State
+  const [registryType, setRegistryType] = useState<DocType>(DocType.WORK_PERMIT);
+  const [regForm, setRegForm] = useState<Partial<Application>>({ status: 'Processing', additional_files: [] });
+
+  // Payment State
+  const [isEditingMethod, setIsEditingMethod] = useState(false);
+  const [methodForm, setMethodForm] = useState<Partial<PaymentMethod>>({ type: 'Bank', enabled: true });
+
+  // Info State
+  const [isEditingInfo, setIsEditingInfo] = useState(false);
+  const [infoForm, setInfoForm] = useState<Partial<InfoEntry>>({ appType: DocType.WORK_PERMIT, category: 'Rules', status: 'Active' });
+
+  // Device Filters
+  const [deviceFilterStatus, setDeviceFilterStatus] = useState<string>('ALL');
 
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     if (fd.get('user') === 'shohag055' && fd.get('pass') === '2846Shohag..') {
-      setIsAuth(true);
-      addLog('Admin', 'Secure Login', 'Session initiated by shohag055.');
-    } else {
-      alert('Security violation: Incorrect credentials.');
-    }
-  };
+      const ipRes = await fetch('https://api.ipify.org?format=json');
+      const ipData = await ipRes.json();
+      const device = await checkDeviceStatus(ipData.ip);
 
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
-      addLog('Admin', 'Manual Sync', 'Dossier registry synchronized with master database.');
-    }, 1000);
-  };
-
-  const handleApprove = async (app: Application) => {
-    const recordId = `AUTH-${app.type.slice(0,2)}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
-    const newRecord: OfficialRecord = {
-      id: recordId, 
-      type: app.type, 
-      fullName: app.fullName, 
-      passportNumber: app.passportNumber,
-      nationality: app.nationality, 
-      dob: app.dob,
-      email: app.email,
-      phone: app.phone,
-      issueDate: new Date().toLocaleDateString(),
-      expiryDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toLocaleDateString(),
-      status: 'Verified', 
-      pdfUrl: app.passport_file || '',
-      authorityReference: 'NAT_ARCHIVE_SEC_ALPHA', 
-      employer: app.details?.employer || 'Govt Verified',
-      jobTitle: app.details?.jobTitle || 'Expert'
-    };
-    try {
-      await addRecord(newRecord);
-      await updateApplication(app.id, { status: 'Approved' });
-      alert(`Success: Dossier ${app.id} verified.`);
-      setSelectedAppId(null);
-    } catch (err) {
-      alert('Error during approval process.');
-    }
-  };
-
-  const handleManualRecordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!manualData.fullName || !manualData.passportNumber) {
-      alert('Please fill mandatory fields.');
-      return;
-    }
-
-    try {
-      if (isEditModalOpen && editingRecordId) {
-        await updateRecord(editingRecordId, manualData);
-        alert('Record updated successfully.');
-        setIsEditModalOpen(false);
-        setEditingRecordId(null);
-      } else {
-        const recordId = `MAN-${manualData.type?.slice(0,2)}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
-        const finalRecord: OfficialRecord = {
-          ...manualData as OfficialRecord,
-          id: recordId,
-          authorityReference: 'ADMIN_MANUAL_ENTRY'
-        };
-        await addRecord(finalRecord);
-        alert('Manual Registry Entry Created Successfully.');
-        setIsManualModalOpen(false);
+      if (device && device.status === 'Blocked') {
+        alert('Your device has been blocked. Contact Admin.');
+        return;
       }
-      
-      setManualData({
-        type: DocType.WORK_PERMIT, fullName: '', passportNumber: '', nationality: '',
-        dob: '', email: '', phone: '', issueDate: new Date().toISOString().split('T')[0],
-        expiryDate: '', status: 'Verified', pdfUrl: '', employer: '', jobTitle: ''
-      });
-    } catch (err) {
-      alert('Operation failed. Please try again.');
+      if (device && device.status === 'Suspended') {
+        alert('Access suspended temporarily.');
+        return;
+      }
+
+      await registerCurrentDevice();
+      setIsAuth(true);
+      addLog('Admin', 'Login', `Authorized Access from IP: ${ipData.ip}`);
+    } else {
+      alert('Unauthorized access attempt.');
     }
   };
 
-  const handleEditClick = (rec: OfficialRecord) => {
-    setManualData(rec);
-    setEditingRecordId(rec.id);
-    setIsEditModalOpen(true);
-  };
+  const stats = useMemo(() => ({
+    wp: applications.filter(a => a.type === DocType.WORK_PERMIT).length,
+    visa: applications.filter(a => a.type === DocType.VISA).length,
+    trc: applications.filter(a => a.type === DocType.TRC).length,
+    active: applications.filter(a => ['Approved', 'Verified', 'Processing'].includes(a.status)).length,
+    expired: applications.filter(a => a.status === 'Expired').length,
+    total: applications.length
+  }), [applications]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const filteredApps = useMemo(() => {
+    return applications.filter(a => {
+      const matchesSearch = a.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           a.passportNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           a.id.includes(searchTerm);
+      const matchesFilter = appFilter === 'ALL' || a.type === appFilter;
+      return matchesSearch && matchesFilter;
+    });
+  }, [applications, searchTerm, appFilter]);
+
+  const filteredDevices = useMemo(() => {
+    return devices.filter(d => {
+      const matchesSearch = d.ip.includes(searchTerm) || d.deviceName.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = deviceFilterStatus === 'ALL' || d.status === deviceFilterStatus;
+      return matchesSearch && matchesStatus;
+    });
+  }, [devices, searchTerm, deviceFilterStatus]);
+
+  const handleFileUpload = (field: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setManualData(prev => ({ ...prev, pdfUrl: reader.result as string }));
+        if (field === 'additional') {
+          setRegForm(prev => ({ ...prev, additional_files: [...(prev.additional_files || []), reader.result as string] }));
+        } else {
+          setRegForm(prev => ({ ...prev, [field]: reader.result as string }));
+        }
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleDeleteRecord = async (id: string) => {
-    if (window.confirm('WARNING: Are you sure you want to permanently delete this official record? This action cannot be undone and will be reflected immediately for all users.')) {
-      try {
-        await deleteRecord(id);
-        alert('Record deleted successfully.');
-      } catch (err) {
-        alert('Critical: Failed to delete record from server.');
-      }
-    }
-  };
-
-  const stats = useMemo(() => {
-    const rev = applications
-      .filter(a => a.paymentStatus === 'Paid')
-      .reduce((acc, a) => acc + parseInt(a.amount?.replace(/\D/g, '') || '0'), 0);
-    return {
-      total: applications.length,
-      wp: applications.filter(a => a.type === DocType.WORK_PERMIT).length,
-      visa: applications.filter(a => a.type === DocType.VISA).length,
-      trc: applications.filter(a => a.type === DocType.TRC).length,
-      pending: applications.filter(a => ['Submitted', 'Under Review'].includes(a.status)).length,
-      revenue: rev.toLocaleString() + ' VND'
+  const saveRegistryRecord = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const id = regForm.id || `REG-${Date.now().toString().slice(-6)}`;
+    const record: Application = {
+      ...regForm as Application,
+      id,
+      type: registryType,
+      submissionDate: regForm.submissionDate || new Date().toLocaleDateString(),
+      history: [{ date: new Date().toLocaleString(), action: regForm.id ? 'Record Updated' : 'Record Created', by: 'Admin' }]
     };
-  }, [applications]);
-
-  const filteredApps = useMemo(() => {
-    return applications.filter(app => {
-      const matchSearch = app.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          app.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          app.passportNumber.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchType = typeFilter === 'ALL' || app.type === typeFilter;
-      return matchSearch && matchType;
-    });
-  }, [applications, searchTerm, typeFilter]);
-
-  const filteredRecords = useMemo(() => {
-    return records.filter(rec => {
-      const matchSearch = rec.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          rec.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          rec.passportNumber.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchType = typeFilter === 'ALL' || rec.type === typeFilter;
-      return matchSearch && matchType;
-    });
-  }, [records, searchTerm, typeFilter]);
+    if (regForm.id) await updateApplication(id, record);
+    else await addApplication(record);
+    alert('Registry record saved successfully.');
+    setRegForm({ status: 'Processing', additional_files: [] });
+  };
 
   if (isLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-12 h-12 text-red-600 animate-spin" /></div>;
 
   if (!isAuth) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-        <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 w-full max-w-md border-t-[14px] border-red-600 animate-in zoom-in duration-500">
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 font-sans">
+        <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 w-full max-w-md border-t-[14px] border-red-600">
           <div className="text-center mb-10">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Emblem_of_Vietnam.svg/200px-Emblem_of_Vietnam.svg.png" className="w-20 mx-auto mb-4" />
-            <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tighter leading-none">Command Terminal</h1>
-            <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mt-2">Ministry of Public Security</p>
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Emblem_of_Vietnam.svg/200px-Emblem_of_Vietnam.svg.png" className="w-20 mx-auto mb-4" alt="Emblem" />
+            <h1 className="text-2xl font-black text-slate-900 uppercase">Executive Portal</h1>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Ministry Access Only</p>
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
-            <input name="user" required className="w-full bg-slate-50 border-2 border-slate-100 p-5 rounded-2xl text-slate-900 font-bold outline-none focus:border-red-600 transition-all" placeholder="Admin ID" />
-            <input name="pass" type="password" required className="w-full bg-slate-50 border-2 border-slate-100 p-5 rounded-2xl text-slate-900 font-bold outline-none focus:border-red-600 transition-all" placeholder="Security Token" />
-            <button type="submit" className="w-full bg-red-600 text-white font-black py-5 rounded-2xl shadow-xl hover:bg-red-700 transition-all uppercase tracking-widest text-sm active:scale-95">Access Terminal</button>
+            <input name="user" required className="w-full bg-slate-50 border-2 border-slate-100 p-5 rounded-2xl text-slate-900 font-bold outline-none" placeholder="Username" />
+            <input name="pass" type="password" required className="w-full bg-slate-50 border-2 border-slate-100 p-5 rounded-2xl text-slate-900 font-bold outline-none" placeholder="Password" />
+            <button type="submit" className="w-full bg-red-600 text-white font-black py-5 rounded-2xl shadow-xl uppercase transition-all">Authorize Access</button>
           </form>
-          <button onClick={() => navigate('/')} className="w-full mt-8 text-[10px] text-slate-300 hover:text-red-500 font-black uppercase text-center transition-colors">Terminate Session</button>
+          <button onClick={() => navigate('/')} className="w-full mt-8 text-[10px] text-slate-300 font-black uppercase text-center hover:text-slate-500">Terminate Session</button>
         </div>
       </div>
     );
   }
 
-  const selectedApp = applications.find(a => a.id === selectedAppId);
-
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900">
-      
-      {/* Universal HD File Previewer */}
-      {previewFile && (
-        <div className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-3xl flex flex-col items-center justify-center p-8 animate-in fade-in duration-300">
-          <button onClick={() => setPreviewFile(null)} className="absolute top-8 right-8 p-4 bg-white/20 hover:bg-white/40 rounded-full text-white transition-all"><X className="w-8 h-8" /></button>
-          <div className="w-full max-w-5xl h-[85vh] bg-white rounded-3xl overflow-hidden shadow-2xl flex items-center justify-center p-2 border border-white/10 relative">
-             <img 
-               src={previewFile.url} 
-               className="max-w-full max-h-full object-contain rounded-2xl shadow-inner" 
-               alt="Secure File"
-             />
-             <div className="absolute bottom-6 left-6 bg-black/40 backdrop-blur-md px-6 py-2 rounded-full text-white font-black uppercase text-xs tracking-widest">
-               {previewFile.label}
-             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Manual Entry & Edit Modal */}
-      {(isManualModalOpen || isEditModalOpen) && (
-        <div className="fixed inset-0 z-[250] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 lg:p-10 overflow-y-auto">
-          <div className="bg-white w-full max-w-5xl rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300 my-auto max-h-[95vh] border-t-[10px] border-emerald-500">
-            <div className="p-8 border-b bg-slate-50 flex items-center justify-between sticky top-0 z-20">
-              <div className="flex items-center gap-6">
-                <div className={`p-5 rounded-2xl text-white shadow-xl ${isEditModalOpen ? 'bg-blue-600' : 'bg-emerald-600'}`}>
-                  {isEditModalOpen ? <Pencil className="w-7 h-7" /> : <PlusCircle className="w-7 h-7" />}
-                </div>
-                <div>
-                  <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter leading-none">
-                    {isEditModalOpen ? 'Modify Registry Entry' : 'Manual Registry Creation'}
-                  </h2>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Authorized Administrative Access</p>
-                </div>
-              </div>
-              <button onClick={() => { setIsManualModalOpen(false); setIsEditModalOpen(false); setEditingRecordId(null); }} className="p-4 bg-slate-100 rounded-full hover:bg-red-50 hover:text-red-600 transition-all"><X className="w-6 h-6" /></button>
-            </div>
-            
-            <form onSubmit={handleManualRecordSubmit} className="flex-1 overflow-y-auto p-12 lg:p-16 grid lg:grid-cols-2 gap-10">
-              <div className="space-y-8">
-                <h3 className="text-xs font-black uppercase text-emerald-600 tracking-widest border-b pb-4 flex items-center gap-2"><User className="w-4 h-4" /> Personal Information</h3>
-                <div className="grid gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Full Legal Name</label>
-                    <input required value={manualData.fullName} onChange={e => setManualData({...manualData, fullName: e.target.value.toUpperCase()})} className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-2xl text-slate-900 font-bold outline-none focus:border-emerald-500 uppercase" placeholder="NAME AS PER PASSPORT" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Passport Number</label>
-                      <input required value={manualData.passportNumber} onChange={e => setManualData({...manualData, passportNumber: e.target.value.toUpperCase()})} className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-2xl text-slate-900 font-bold outline-none focus:border-emerald-500 uppercase" placeholder="B1234567" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Email Address</label>
-                      <input required type="email" value={manualData.email} onChange={e => setManualData({...manualData, email: e.target.value.toLowerCase()})} className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-2xl text-slate-900 font-bold outline-none focus:border-emerald-500" placeholder="user@domain.com" />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Nationality</label>
-                      <input required value={manualData.nationality} onChange={e => setManualData({...manualData, nationality: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-2xl text-slate-900 font-bold outline-none focus:border-emerald-500 uppercase" placeholder="COUNTRY" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Date of Birth</label>
-                      <input required type="date" value={manualData.dob} onChange={e => setManualData({...manualData, dob: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-2xl text-slate-900 font-bold outline-none focus:border-emerald-500" />
-                    </div>
-                  </div>
-                </div>
-
-                <h3 className="text-xs font-black uppercase text-emerald-600 tracking-widest border-b pb-4 pt-4 flex items-center gap-2"><Briefcase className="w-4 h-4" /> Sponsorship Info</h3>
-                <div className="grid gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Employer Name</label>
-                    <input value={manualData.employer} onChange={e => setManualData({...manualData, employer: e.target.value.toUpperCase()})} className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-2xl text-slate-900 font-bold outline-none focus:border-emerald-500 uppercase" placeholder="COMPANY NAME" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-8">
-                <h3 className="text-xs font-black uppercase text-emerald-600 tracking-widest border-b pb-4 flex items-center gap-2"><Settings className="w-4 h-4" /> Category & Validity</h3>
-                <div className="grid gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Registry Type</label>
-                    <select value={manualData.type} onChange={e => setManualData({...manualData, type: e.target.value as DocType})} className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-2xl text-slate-900 font-bold outline-none focus:border-emerald-500">
-                      <option value={DocType.WORK_PERMIT}>WORK PERMIT</option>
-                      <option value={DocType.VISA}>VISA (ENTRY)</option>
-                      <option value={DocType.TRC}>TRC (RESIDENCY)</option>
-                    </select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Issue Date</label>
-                      <input required type="date" value={manualData.issueDate} onChange={e => setManualData({...manualData, issueDate: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-2xl text-slate-900 font-bold outline-none focus:border-emerald-500" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Expiry Date</label>
-                      <input required type="date" value={manualData.expiryDate} onChange={e => setManualData({...manualData, expiryDate: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-2xl text-slate-900 font-bold outline-none focus:border-emerald-500" />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Record Image/Scan</label>
-                    <div className="p-8 border-4 border-dashed border-slate-100 rounded-3xl text-center relative group bg-slate-50 hover:border-emerald-500 transition-all cursor-pointer">
-                      <input type="file" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-                      <Upload className="mx-auto w-10 h-10 text-slate-300 mb-2 group-hover:text-emerald-500" />
-                      <p className="text-[10px] font-black uppercase text-slate-400">Upload official document scan</p>
-                      {manualData.pdfUrl && <div className="absolute inset-0 bg-emerald-600 flex flex-col items-center justify-center text-white font-black uppercase text-xs"><span>FILE ATTACHED</span><CheckCircle2 className="mt-2 w-6 h-6" /></div>}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-8">
-                  <button type="submit" className={`w-full py-6 text-white rounded-3xl font-black uppercase tracking-widest shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3 ${isEditModalOpen ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-100' : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-100'}`}>
-                    <ShieldCheck className="w-6 h-6" /> {isEditModalOpen ? 'Commit Changes' : 'Commit Record to Registry'}
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Main Sidebar */}
-      <aside className="w-72 bg-slate-900 text-white flex flex-col shrink-0 h-screen sticky top-0 z-[100]">
-        <div className="p-10 border-b border-white/5 bg-slate-950 flex items-center gap-4">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Emblem_of_Vietnam.svg/200px-Emblem_of_Vietnam.svg.png" className="w-12 brightness-0 invert" />
-          <div className="font-black text-[11px] uppercase tracking-widest leading-none">Command<br/><span className="text-red-500">Control Hub</span></div>
+    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900 overflow-hidden">
+      {/* Sidebar Navigation */}
+      <aside className="w-72 bg-slate-900 text-white flex flex-col shrink-0">
+        <div className="p-8 bg-slate-950 border-b border-white/5 flex items-center gap-4">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Emblem_of_Vietnam.svg/200px-Emblem_of_Vietnam.svg.png" className="w-12 brightness-0 invert" alt="Emblem" />
+          <div className="font-black text-xs uppercase tracking-widest text-red-500 leading-tight">National<br/>Admin Console</div>
         </div>
         <nav className="p-6 flex-1 space-y-2">
           {[
             { id: 'DASHBOARD', icon: LayoutDashboard, label: 'Dashboard' },
-            { id: 'RECORD', icon: Database, label: 'Record' },
-            { id: 'PAYMENT', icon: Banknote, label: 'Payment' },
-            { id: 'INFORMATION', icon: Info, label: 'Information' },
-            { id: 'DEVICE', icon: Cpu, label: 'Device' },
-          ].map(tab => (
+            { id: 'APPLICATIONS', icon: Globe, label: 'Applications' },
+            { id: 'REGISTRY', icon: Database, label: 'Registry Record' },
+            { id: 'PAYMENT', icon: Banknote, label: 'Payment Desk' },
+            { id: 'INFORMATION', icon: Bell, label: 'Public Info' },
+            { id: 'DEVICE', icon: ShieldCheck, label: 'Device Guard' },
+          ].map(t => (
             <button 
-              key={tab.id} 
-              onClick={() => { setActiveTab(tab.id as AdminTab); setSearchTerm(''); setTypeFilter('ALL'); }} 
-              className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all font-black uppercase text-[10px] tracking-widest ${activeTab === tab.id ? 'bg-red-600 text-white shadow-xl' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
+              key={t.id} 
+              onClick={() => setActiveTab(t.id as AdminTab)} 
+              className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all font-black uppercase text-[10px] tracking-widest ${activeTab === t.id ? 'bg-red-600 text-white shadow-xl' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
             >
-              <tab.icon className="w-5 h-5" /> {tab.label}
+               <t.icon className="w-5 h-5" /> {t.label}
             </button>
           ))}
         </nav>
         <div className="p-10 border-t border-white/5">
-          <button onClick={() => setIsAuth(false)} className="w-full flex items-center gap-3 text-red-500 font-black uppercase text-[10px] tracking-widest hover:text-red-400 transition-colors"><LogOut className="w-4 h-4" /> Disconnect</button>
+          <button onClick={() => setIsAuth(false)} className="text-red-500 font-black uppercase text-[10px] flex items-center gap-2 hover:text-red-400"><LogOut className="w-4 h-4" /> Disconnect</button>
         </div>
       </aside>
 
-      {/* Viewport Content */}
-      <main className="flex-1 p-10 lg:p-14 overflow-y-auto">
-        <div className="max-w-7xl mx-auto space-y-16">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 border-b border-slate-200 pb-10">
-            <div className="space-y-1">
-              <div className="flex items-center gap-4">
-                <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter leading-none">{activeTab}</h2>
-                {activeTab === 'DASHBOARD' && (
-                  <button 
-                    onClick={handleRefresh} 
-                    className={`p-2 rounded-full transition-all ${isRefreshing ? 'animate-spin text-red-600' : 'text-slate-300 hover:text-red-600'}`}
-                  >
-                    <RefreshCcw className="w-5 h-5" />
-                  </button>
-                )}
-              </div>
-              <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.4em]">ADMIN TERMINAL: VN_CORE_SVR_HQ</p>
-            </div>
-            <div className="relative w-full md:w-96 group">
-              <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-red-600 transition-colors" />
-              <input 
-                placeholder="Search dossiers, records or passports..." 
-                value={searchTerm} 
-                onChange={e => setSearchTerm(e.target.value)} 
-                className="w-full pl-14 pr-6 py-5 bg-white border-2 border-slate-100 rounded-[2rem] text-[11px] font-bold text-slate-900 outline-none focus:border-red-600 shadow-sm transition-all" 
-              />
+      {/* Content Area */}
+      <main className="flex-1 p-10 overflow-y-auto">
+        <div className="max-w-7xl mx-auto space-y-12">
+          
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 border-b pb-8">
+            <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter italic">{activeTab.replace('_', ' ')}</h2>
+            <div className="relative w-full md:w-96">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+              <input placeholder="Search Database..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-14 pr-6 py-4 bg-white border-2 border-slate-100 rounded-full text-[11px] font-bold outline-none focus:border-red-600 shadow-sm" />
             </div>
           </div>
 
-          {/* RECORD TAB */}
-          {activeTab === 'RECORD' && (
-            <div className="space-y-10 animate-in fade-in duration-500">
-               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                  <div className="flex gap-2 bg-slate-100 p-2 rounded-2xl border border-slate-200">
-                     {['ALL', DocType.WORK_PERMIT, DocType.VISA, DocType.TRC].map(type => (
-                       <button key={type} onClick={() => setTypeFilter(type as any)} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${typeFilter === type ? 'bg-white text-red-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>{type === 'ALL' ? 'Everything' : type}</button>
-                     ))}
+          {activeTab === 'DASHBOARD' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {[
+                { label: 'Work Permit Applications', val: stats.wp, icon: Briefcase, color: 'bg-red-600', type: DocType.WORK_PERMIT },
+                { label: 'Visa Applications', val: stats.visa, icon: Globe, color: 'bg-emerald-600', type: DocType.VISA },
+                { label: 'TRC Applications', val: stats.trc, icon: ShieldCheck, color: 'bg-blue-600', type: DocType.TRC },
+                { label: 'Active Records', val: stats.active, icon: UserCheck, color: 'bg-slate-900', type: 'ALL' },
+                { label: 'Expired Records', val: stats.expired, icon: AlertCircle, color: 'bg-amber-600', type: 'ALL' }
+              ].map((stat, i) => (
+                <button 
+                  key={i} 
+                  onClick={() => { setActiveTab('APPLICATIONS'); setAppFilter(stat.type as any); }}
+                  className={`${stat.color} p-10 rounded-[3rem] text-white shadow-xl hover:scale-105 transition-all text-left flex flex-col justify-between aspect-video`}
+                >
+                  <div className="p-4 bg-white/20 rounded-2xl w-fit"><stat.icon className="w-8 h-8" /></div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase opacity-60 tracking-widest">{stat.label}</p>
+                    <p className="text-5xl font-black mt-2 tracking-tighter">{stat.val}</p>
                   </div>
-                  <button onClick={() => setIsManualModalOpen(true)} className="flex items-center gap-3 px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:bg-emerald-500 active:scale-95 transition-all">
-                    <PlusCircle className="w-4 h-4" /> Create Manual Entry
-                  </button>
-               </div>
+                </button>
+              ))}
+            </div>
+          )}
 
-               <div className="bg-white rounded-[3.5rem] border-2 border-slate-100 shadow-sm overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead className="bg-slate-50 border-b text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        <tr><th className="px-10 py-8">Citizen Entity</th><th className="px-10 py-8">Reference ID</th><th className="px-10 py-8">Category</th><th className="px-10 py-8">Validity</th><th className="px-10 py-8 text-right">Actions</th></tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {filteredRecords.length > 0 ? filteredRecords.map(rec => (
-                          <tr key={rec.id} className="hover:bg-slate-50 transition-all group">
-                            <td className="px-10 py-8">
-                               <div className="flex items-center gap-5">
-                                  <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-sm"><User className="w-6 h-6" /></div>
-                                  <div><p className="font-black text-sm uppercase text-slate-900 tracking-tight">{rec.fullName}</p><p className="text-[9px] font-bold text-slate-400 font-mono mt-1">{rec.passportNumber}</p></div>
-                               </div>
-                            </td>
-                            <td className="px-10 py-8 font-mono text-xs font-bold text-slate-400">{rec.id}</td>
-                            <td className="px-10 py-8"><span className="text-[9px] font-black uppercase bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">{rec.type}</span></td>
-                            <td className="px-10 py-8"><div className="space-y-1"><p className="text-[10px] font-bold text-slate-900">{rec.issueDate}</p><p className={`text-[9px] font-black uppercase ${new Date(rec.expiryDate) < new Date() ? 'text-red-500' : 'text-emerald-500'}`}>EXP: {rec.expiryDate}</p></div></td>
-                            <td className="px-10 py-8 text-right">
-                               <div className="flex justify-end gap-2">
-                                  <button onClick={() => setPreviewFile({url: rec.pdfUrl, label: 'Official Scan'})} title="View" className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-emerald-500 hover:border-emerald-200 transition-all shadow-sm"><Eye className="w-5 h-5" /></button>
-                                  <button onClick={() => handleEditClick(rec)} title="Edit" className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-blue-500 hover:border-blue-200 transition-all shadow-sm"><Pencil className="w-5 h-5" /></button>
-                                  <button onClick={() => handleDeleteRecord(rec.id)} title="Delete" className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-red-500 hover:border-red-200 transition-all shadow-sm"><Trash2 className="w-5 h-5" /></button>
-                               </div>
-                            </td>
-                          </tr>
-                        )) : (<tr><td colSpan={5} className="py-20 text-center"><SearchX className="w-16 h-16 text-slate-100 mx-auto mb-4" /><p className="text-slate-400 font-bold italic">No records found.</p></td></tr>)}
-                      </tbody>
-                    </table>
+          {activeTab === 'APPLICATIONS' && (
+            <div className="space-y-8 animate-in slide-in-from-bottom-8">
+              <div className="flex gap-4 bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm w-fit">
+                {['ALL', DocType.WORK_PERMIT, DocType.VISA, DocType.TRC].map(f => (
+                  <button key={f} onClick={() => setAppFilter(f as any)} className={`px-6 py-2 rounded-full text-[10px] font-black uppercase transition-all ${appFilter === f ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-slate-600'}`}>{f}</button>
+                ))}
+              </div>
+              
+              <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50 border-b text-[10px] font-black uppercase text-slate-400">
+                    <tr>
+                      <th className="px-8 py-6">App Number</th>
+                      <th className="px-8 py-6">Full Name</th>
+                      <th className="px-8 py-6">Type</th>
+                      <th className="px-8 py-6">Status</th>
+                      <th className="px-8 py-6">Expiry</th>
+                      <th className="px-8 py-6 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {filteredApps.map(app => (
+                      <tr key={app.id} onClick={() => setSelectedApp(app)} className="hover:bg-slate-50 cursor-pointer group transition-colors">
+                        <td className="px-8 py-6 font-mono text-xs font-bold text-red-600">{app.id}</td>
+                        <td className="px-8 py-6">
+                          <p className="font-black text-slate-900 uppercase text-xs">{app.fullName}</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase">{app.passportNumber}</p>
+                        </td>
+                        <td className="px-8 py-6"><span className="px-3 py-1 bg-slate-100 rounded-lg text-[9px] font-black uppercase">{app.type}</span></td>
+                        <td className="px-8 py-6">
+                          <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase ${
+                            app.status === 'Approved' ? 'bg-emerald-100 text-emerald-600' :
+                            app.status === 'Processing' ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'
+                          }`}>{app.status}</span>
+                        </td>
+                        <td className="px-8 py-6 text-[10px] font-black uppercase text-slate-500">{app.expiryDate || 'N/A'}</td>
+                        <td className="px-8 py-6 text-right"><Eye className="inline w-5 h-5 text-slate-300 group-hover:text-red-600" /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {selectedApp && (
+            <div className="fixed inset-0 z-[1000] bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-6 overflow-y-auto">
+               <div className="bg-white w-full max-w-6xl rounded-[4rem] shadow-2xl overflow-hidden flex flex-col my-10 border-t-[12px] border-red-600">
+                  <div className="p-12 border-b bg-slate-50 flex items-center justify-between">
+                     <div>
+                       <h3 className="text-3xl font-black uppercase tracking-tighter">Application Docket</h3>
+                       <p className="text-red-600 font-mono text-sm font-black">{selectedApp.id}</p>
+                     </div>
+                     <button onClick={() => setSelectedApp(null)} className="p-4 bg-white border border-slate-100 rounded-full hover:text-red-600"><X /></button>
+                  </div>
+                  
+                  <div className="p-12 space-y-12 overflow-y-auto">
+                     <div className="grid md:grid-cols-3 gap-12">
+                        <section className="space-y-6">
+                           <h4 className="text-[10px] font-black uppercase text-red-600 tracking-widest border-b pb-2">Personal Information</h4>
+                           <div className="space-y-4">
+                              {[
+                                { label: 'Full Legal Name', val: selectedApp.fullName },
+                                { label: 'Passport Identity', val: selectedApp.passportNumber },
+                                { label: 'Nationality', val: selectedApp.nationality },
+                                { label: 'Date of Birth', val: selectedApp.dob },
+                                { label: 'Gender', val: selectedApp.gender }
+                              ].map(f => (
+                                <div key={f.label}><p className="text-[8px] font-black uppercase text-slate-400">{f.label}</p><p className="font-bold text-slate-900 uppercase">{f.val}</p></div>
+                              ))}
+                           </div>
+                        </section>
+                        <section className="space-y-6">
+                           <h4 className="text-[10px] font-black uppercase text-red-600 tracking-widest border-b pb-2">Professional & Sponsor</h4>
+                           <div className="space-y-4">
+                              {[
+                                { label: 'Sponsor Name', val: selectedApp.sponsorName },
+                                { label: 'Sponsor Entity', val: selectedApp.sponsorCompany },
+                                { label: 'Professional Role', val: selectedApp.jobPosition },
+                                { label: 'Vietnam Address', val: selectedApp.vietnamAddress }
+                              ].map(f => (
+                                <div key={f.label}><p className="text-[8px] font-black uppercase text-slate-400">{f.label}</p><p className="font-bold text-slate-900 uppercase">{f.val || 'Not Registered'}</p></div>
+                              ))}
+                           </div>
+                        </section>
+                        <section className="space-y-6">
+                           <h4 className="text-[10px] font-black uppercase text-red-600 tracking-widest border-b pb-2">Registry Details</h4>
+                           <div className="space-y-4">
+                              {[
+                                { label: 'Administrative Status', val: selectedApp.status },
+                                { label: 'Document Issuance', val: selectedApp.issueDate },
+                                { label: 'Registry Expiry', val: selectedApp.expiryDate },
+                                { label: 'Payment Status', val: selectedApp.paymentStatus }
+                              ].map(f => (
+                                <div key={f.label}><p className="text-[8px] font-black uppercase text-slate-400">{f.label}</p><p className="font-bold text-slate-900 uppercase">{f.val}</p></div>
+                              ))}
+                           </div>
+                        </section>
+                     </div>
+
+                     <section className="space-y-6">
+                        <h4 className="text-[10px] font-black uppercase text-red-600 tracking-widest border-b pb-2">Verification Assets</h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-6">
+                           {[
+                             { label: 'Passport', file: selectedApp.passport_file },
+                             { label: 'Identity Photo', file: selectedApp.photo_file },
+                             { label: 'Visa Asset', file: selectedApp.visa_file },
+                             { label: 'TRC Front', file: selectedApp.trc_file_front },
+                             { label: 'TRC Back', file: selectedApp.trc_file_back },
+                             { label: 'WP Document', file: selectedApp.wp_file },
+                             { label: 'Contract', file: selectedApp.contract_file },
+                             { label: 'Payment Receipt', file: selectedApp.payment_receipt_file }
+                           ].filter(f => f.file).map(f => (
+                             <div key={f.label} className="group relative aspect-[3/4] bg-slate-50 border-2 border-slate-100 rounded-3xl overflow-hidden hover:border-red-600 transition-all cursor-pointer">
+                                <img src={f.file} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" alt={f.label} />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-4">
+                                   <p className="text-[8px] font-black uppercase text-white tracking-widest">{f.label}</p>
+                                   <div className="flex gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <button onClick={() => setPreviewFile(f.file!)} className="p-2 bg-white/20 text-white rounded-lg"><Eye className="w-3 h-3" /></button>
+                                      <a href={f.file} download={`${selectedApp.id}_${f.label}.png`} className="p-2 bg-white/20 text-white rounded-lg"><Download className="w-3 h-3" /></a>
+                                   </div>
+                                </div>
+                             </div>
+                           ))}
+                        </div>
+                     </section>
                   </div>
                </div>
             </div>
           )}
 
-          {/* DASHBOARD TAB */}
-          {activeTab === 'DASHBOARD' && (
-            <div className="space-y-16 animate-in fade-in duration-500">
-               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                  <button 
-                    onClick={() => { setTypeFilter('ALL'); setSearchTerm(''); }}
-                    className={`p-10 rounded-[3.5rem] space-y-4 shadow-2xl relative overflow-hidden group transition-all text-left ${typeFilter === 'ALL' ? 'bg-slate-900 text-white ring-4 ring-red-600/20' : 'bg-slate-100 text-slate-900 hover:bg-slate-200'}`}
+          {activeTab === 'REGISTRY' && (
+            <div className="space-y-10 animate-in slide-in-from-right-10">
+               <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
+                  <div className="space-y-1">
+                     <h3 className="text-2xl font-black uppercase tracking-tight text-slate-900">Administrative Registry</h3>
+                     <p className="text-slate-400 text-xs font-bold italic uppercase tracking-widest">Select category and commit official records to database</p>
+                  </div>
+                  <select 
+                    value={registryType} 
+                    onChange={e => { setRegistryType(e.target.value as DocType); setRegForm({ status: 'Processing', additional_files: [] }); }} 
+                    className="p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black uppercase text-xs outline-none focus:border-red-600 w-full md:w-80 shadow-inner"
                   >
-                    <p className={`text-[10px] font-black uppercase tracking-widest relative z-10 ${typeFilter === 'ALL' ? 'text-red-500' : 'text-slate-500'}`}>Total Dossiers</p>
-                    <p className="text-7xl font-black relative z-10 tracking-tighter">{stats.total}</p>
-                    <BarChart3 className={`absolute -bottom-6 -right-6 w-40 h-40 opacity-5 rotate-12 group-hover:scale-110 transition-transform ${typeFilter === 'ALL' ? 'text-white' : 'text-slate-900'}`} />
-                  </button>
+                    <option value={DocType.WORK_PERMIT}>Work Permit (LD)</option>
+                    <option value={DocType.VISA}>Entry Visa (DL/DN)</option>
+                    <option value={DocType.TRC}>Residence Card (TRC)</option>
+                  </select>
+               </div>
 
-                  <button 
-                    onClick={() => { setTypeFilter(DocType.WORK_PERMIT); setSearchTerm(''); }}
-                    className={`p-10 rounded-[3.5rem] space-y-4 shadow-xl relative overflow-hidden group transition-all text-left ${typeFilter === DocType.WORK_PERMIT ? 'bg-red-600 text-white ring-4 ring-red-600/20' : 'bg-white border-2 border-slate-100 text-slate-900 hover:border-red-600'}`}
-                  >
-                    <p className={`text-[10px] font-black uppercase tracking-widest relative z-10 ${typeFilter === DocType.WORK_PERMIT ? 'text-white' : 'text-slate-400'}`}>Work Permits</p>
-                    <p className="text-7xl font-black relative z-10 tracking-tighter">{stats.wp}</p>
-                    <Briefcase className="absolute -bottom-6 -right-6 w-40 h-40 opacity-5 rotate-12 group-hover:scale-110 transition-transform" />
-                  </button>
+               <form onSubmit={saveRegistryRecord} className="bg-white p-12 md:p-16 rounded-[4rem] border border-slate-100 shadow-xl space-y-12">
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                     <div className="space-y-2"><label className="text-[9px] font-black uppercase text-slate-400 ml-2">Full Legal Name *</label><input required value={regForm.fullName} onChange={e => setRegForm({...regForm, fullName: e.target.value})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold uppercase" /></div>
+                     <div className="space-y-2"><label className="text-[9px] font-black uppercase text-slate-400 ml-2">Passport Number *</label><input required value={regForm.passportNumber} onChange={e => setRegForm({...regForm, passportNumber: e.target.value})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold uppercase" /></div>
+                     <div className="space-y-2"><label className="text-[9px] font-black uppercase text-slate-400 ml-2">Nationality *</label><input required value={regForm.nationality} onChange={e => setRegForm({...regForm, nationality: e.target.value})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold uppercase" /></div>
+                     
+                     {registryType === DocType.WORK_PERMIT && (
+                       <>
+                         <div className="space-y-2"><label className="text-[9px] font-black uppercase text-slate-400 ml-2">Work Permit #</label><input value={regForm.wpNumber} onChange={e => setRegForm({...regForm, wpNumber: e.target.value})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold uppercase" /></div>
+                         <div className="space-y-2"><label className="text-[9px] font-black uppercase text-slate-400 ml-2">Employer Name</label><input value={regForm.companyName} onChange={e => setRegForm({...regForm, companyName: e.target.value})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold uppercase" /></div>
+                         <div className="space-y-2"><label className="text-[9px] font-black uppercase text-slate-400 ml-2">Job Position</label><input value={regForm.jobPosition} onChange={e => setRegForm({...regForm, jobPosition: e.target.value})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold uppercase" /></div>
+                       </>
+                     )}
 
-                  <button 
-                    onClick={() => { setTypeFilter(DocType.VISA); setSearchTerm(''); }}
-                    className={`p-10 rounded-[3.5rem] space-y-4 shadow-xl relative overflow-hidden group transition-all text-left ${typeFilter === DocType.VISA ? 'bg-blue-600 text-white ring-4 ring-blue-600/20' : 'bg-white border-2 border-slate-100 text-slate-900 hover:border-blue-600'}`}
-                  >
-                    <p className={`text-[10px] font-black uppercase tracking-widest relative z-10 ${typeFilter === DocType.VISA ? 'text-white' : 'text-slate-400'}`}>Visas (VISA)</p>
-                    <p className="text-7xl font-black relative z-10 tracking-tighter">{stats.visa}</p>
-                    <Globe className="absolute -bottom-6 -right-6 w-40 h-40 opacity-5 rotate-12 group-hover:scale-110 transition-transform" />
-                  </button>
+                     {registryType === DocType.VISA && (
+                       <>
+                         <div className="space-y-2"><label className="text-[9px] font-black uppercase text-slate-400 ml-2">Visa Type (e.g. DL, DN)</label><input value={regForm.visaType} onChange={e => setRegForm({...regForm, visaType: e.target.value})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold uppercase" /></div>
+                         <div className="space-y-2"><label className="text-[9px] font-black uppercase text-slate-400 ml-2">Entry Format</label><select value={regForm.visaEntryType} onChange={e => setRegForm({...regForm, visaEntryType: e.target.value as any})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold uppercase"><option value="Single">Single Entry</option><option value="Multiple">Multiple Entry</option></select></div>
+                         <div className="space-y-2"><label className="text-[9px] font-black uppercase text-slate-400 ml-2">Visa Number</label><input value={regForm.visaNumber} onChange={e => setRegForm({...regForm, visaNumber: e.target.value})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold uppercase" /></div>
+                       </>
+                     )}
 
-                  <button 
-                    onClick={() => { setTypeFilter(DocType.TRC); setSearchTerm(''); }}
-                    className={`p-10 rounded-[3.5rem] space-y-4 shadow-xl relative overflow-hidden group transition-all text-left ${typeFilter === DocType.TRC ? 'bg-emerald-600 text-white ring-4 ring-emerald-600/20' : 'bg-white border-2 border-slate-100 text-slate-900 hover:border-emerald-600'}`}
-                  >
-                    <p className={`text-[10px] font-black uppercase tracking-widest relative z-10 ${typeFilter === DocType.TRC ? 'text-white' : 'text-slate-400'}`}>Residency (TRC)</p>
-                    <p className="text-7xl font-black relative z-10 tracking-tighter">{stats.trc}</p>
-                    <ShieldCheck className="absolute -bottom-6 -right-6 w-40 h-40 opacity-5 rotate-12 group-hover:scale-110 transition-transform" />
+                     {registryType === DocType.TRC && (
+                       <>
+                         <div className="space-y-2"><label className="text-[9px] font-black uppercase text-slate-400 ml-2">TRC Number</label><input value={regForm.trcNumber} onChange={e => setRegForm({...regForm, trcNumber: e.target.value})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold uppercase" /></div>
+                         <div className="space-y-2"><label className="text-[9px] font-black uppercase text-slate-400 ml-2">Sponsor Name</label><input value={regForm.sponsorName} onChange={e => setRegForm({...regForm, sponsorName: e.target.value})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold uppercase" /></div>
+                         <div className="space-y-2"><label className="text-[9px] font-black uppercase text-slate-400 ml-2">Sponsor Entity</label><input value={regForm.sponsorCompany} onChange={e => setRegForm({...regForm, sponsorCompany: e.target.value})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold uppercase" /></div>
+                       </>
+                     )}
+
+                     <div className="space-y-2"><label className="text-[9px] font-black uppercase text-slate-400 ml-2">Issue Date</label><input type="date" value={regForm.issueDate} onChange={e => setRegForm({...regForm, issueDate: e.target.value})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none" /></div>
+                     <div className="space-y-2"><label className="text-[9px] font-black uppercase text-slate-400 ml-2">Expiry Date</label><input type="date" value={regForm.expiryDate} onChange={e => setRegForm({...regForm, expiryDate: e.target.value})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none" /></div>
+                     <div className="space-y-2"><label className="text-[9px] font-black uppercase text-slate-400 ml-2">Registry Status</label><select value={regForm.status} onChange={e => setRegForm({...regForm, status: e.target.value as any})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold uppercase"><option value="Processing">Processing</option><option value="Approved">Approved</option><option value="Verified">Verified</option><option value="Rejected">Rejected</option><option value="Expired">Expired</option></select></div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <h4 className="text-[10px] font-black uppercase text-red-600 tracking-widest border-b pb-2">Mandatory Artifacts (File Uploads)</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                       {[
+                         { field: 'passport_file', label: 'Passport Scan' },
+                         { field: 'photo_file', label: 'Identity Photo' },
+                         ...(registryType === DocType.WORK_PERMIT ? [
+                           { field: 'wp_file', label: 'Work Permit' },
+                           { field: 'contract_file', label: 'Contract Paper' }
+                         ] : []),
+                         ...(registryType === DocType.VISA ? [
+                           { field: 'visa_file', label: 'Visa Asset' },
+                           { field: 'entry_stamp_file', label: 'Entry Stamp' }
+                         ] : []),
+                         ...(registryType === DocType.TRC ? [
+                           { field: 'trc_file_front', label: 'TRC Front' },
+                           { field: 'trc_file_back', label: 'TRC Back' }
+                         ] : []),
+                         { field: 'additional', label: 'Additional Docs' }
+                       ].map(f => (
+                         <div key={f.field} className="relative aspect-square bg-slate-50 border-4 border-dashed border-slate-100 rounded-[2.5rem] flex flex-col items-center justify-center p-6 text-center group hover:border-red-600 transition-all cursor-pointer overflow-hidden">
+                            <input type="file" onChange={(e) => handleFileUpload(f.field, e)} className="absolute inset-0 opacity-0 cursor-pointer z-20" />
+                            {f.field === 'additional' ? <FilePlus className="w-8 h-8 text-slate-300 mb-2 group-hover:text-red-600" /> : <Upload className="w-8 h-8 text-slate-300 mb-2 group-hover:text-red-600" />}
+                            <p className="text-[9px] font-black uppercase text-slate-400 group-hover:text-red-600">{f.label}</p>
+                            {(regForm as any)[f.field] && f.field !== 'additional' && <div className="absolute inset-0 bg-emerald-500 flex flex-col items-center justify-center text-white z-10 font-black uppercase text-[8px] tracking-widest">Attached <CheckCircle2 className="mt-1 w-4 h-4" /></div>}
+                         </div>
+                       ))}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 pt-10 border-t">
+                     <button type="submit" className="flex-1 py-6 bg-red-600 text-white rounded-3xl font-black uppercase tracking-[0.2em] shadow-xl hover:bg-red-700 transition-all flex items-center justify-center gap-3 active:scale-95"><Save className="w-5 h-5" /> Commit Record</button>
+                     <button type="button" onClick={() => setRegForm({ status: 'Processing', additional_files: [] })} className="px-12 py-6 bg-slate-100 text-slate-400 rounded-3xl font-black uppercase tracking-widest hover:bg-slate-200 transition-all">Clear Form</button>
+                  </div>
+               </form>
+            </div>
+          )}
+
+          {activeTab === 'PAYMENT' && (
+            <div className="space-y-12 animate-in slide-in-from-bottom-8">
+               <div className="flex flex-col md:flex-row justify-between items-center bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm gap-8">
+                  <div>
+                    <h3 className="text-3xl font-black uppercase tracking-tighter">Fiscal Configuration</h3>
+                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest italic">Manage administrative settlement channels & Binance Integration</p>
+                  </div>
+                  <button onClick={() => { setMethodForm({ type: 'Bank', enabled: true }); setIsEditingMethod(true); }} className="px-10 py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl flex items-center gap-3 hover:bg-red-600 transition-all">
+                    <PlusCircle className="w-5 h-5" /> New Channel
                   </button>
                </div>
 
-               <div className="grid lg:grid-cols-3 gap-10">
-                  <div className="lg:col-span-2 bg-white rounded-[4rem] p-12 border-2 border-slate-100 shadow-sm space-y-10">
-                    <div className="flex justify-between items-center border-b border-slate-50 pb-6">
-                       <h3 className="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
-                         <Filter className="w-6 h-6 text-red-600" /> 
-                         Filtered Dossier Traffic 
-                         {typeFilter !== 'ALL' && <span className="ml-2 text-xs font-black text-slate-300">[{typeFilter}]</span>}
-                       </h3>
-                       <button 
-                         onClick={() => { setTypeFilter('ALL'); setSearchTerm(''); }} 
-                         className="text-red-600 text-[10px] font-black uppercase hover:underline tracking-widest transition-all"
-                       >
-                         Reset View
-                       </button>
+               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {config.paymentMethods.map(m => (
+                    <div key={m.id} className="bg-white p-10 rounded-[4rem] border border-slate-100 shadow-sm space-y-8 group relative overflow-hidden">
+                       <div className="flex justify-between items-start relative z-10">
+                          <div className={`p-5 rounded-3xl ${m.type === 'Binance' ? 'bg-yellow-50 text-yellow-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                             {m.type === 'Binance' ? <Coins className="w-10 h-10" /> : <Landmark className="w-10 h-10" />}
+                          </div>
+                          <div className="flex gap-2">
+                             <button onClick={() => { setMethodForm(m); setIsEditingMethod(true); }} className="p-3 bg-slate-50 text-slate-400 hover:text-blue-600 rounded-full transition-colors"><Pencil className="w-4 h-4" /></button>
+                             <button onClick={() => deletePaymentMethod(m.id)} className="p-3 bg-slate-50 text-slate-400 hover:text-red-600 rounded-full transition-colors"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                       </div>
+                       <div className="relative z-10 space-y-4">
+                          <h4 className="text-2xl font-black uppercase tracking-tight">{m.name}</h4>
+                          <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${m.enabled ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                             {m.enabled ? 'Operational' : 'Suspended'}
+                          </span>
+                          <div className="p-4 bg-slate-50 rounded-2xl text-[10px] font-mono font-bold text-slate-500 whitespace-pre-wrap">{m.details}</div>
+                          {m.qrCode && <img src={m.qrCode} className="w-24 h-24 mx-auto rounded-xl border border-slate-100 shadow-inner" alt="Payment QR" />}
+                       </div>
                     </div>
-                    <div className="space-y-4">
-                       {filteredApps.length > 0 ? filteredApps.map(app => (
-                         <div 
-                           key={app.id} 
-                           className="flex items-center justify-between p-6 bg-slate-50 border border-slate-100 rounded-[2.5rem] hover:bg-white hover:shadow-2xl hover:-translate-y-1 transition-all group"
-                         >
-                            <div className="flex items-center gap-6 cursor-pointer" onClick={() => setSelectedAppId(app.id)}>
-                               <div className={`p-5 rounded-2xl text-white shadow-xl ${
-                                 app.type === DocType.WORK_PERMIT ? 'bg-red-500' : 
-                                 app.type === DocType.VISA ? 'bg-blue-500' : 'bg-emerald-500'
-                               }`}>
-                                  <FileText className="w-6 h-6" />
-                               </div>
-                               <div>
-                                  <p className="font-black uppercase text-base tracking-tight text-slate-900">{app.fullName}</p>
-                                  <div className="flex items-center gap-4 mt-1">
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{app.type}</p>
-                                    <span className="text-[10px] text-slate-200">|</span>
-                                    <p className="text-[10px] font-mono font-bold text-red-600 tracking-wider">{app.passportNumber}</p>
-                                  </div>
-                               </div>
-                            </div>
-                            <div className="flex items-center gap-4">
-                               <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${app.paymentStatus === 'Paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                                 {app.paymentStatus}
-                               </span>
-                               <button onClick={() => setSelectedAppId(app.id)} className="p-3 bg-white border border-slate-100 rounded-xl text-slate-300 hover:text-red-600 transition-all">
-                                 <ChevronRight className="w-6 h-6" />
-                               </button>
-                            </div>
-                         </div>
-                       )) : (
-                         <div className="py-20 text-center space-y-6">
-                            <SearchX className="w-16 h-16 text-slate-100 mx-auto" />
-                            <p className="text-slate-400 font-bold italic">Registry empty for current filters.</p>
-                            <button onClick={() => { setTypeFilter('ALL'); setSearchTerm(''); }} className="px-6 py-2 bg-slate-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest">Clear All Filters</button>
-                         </div>
-                       )}
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-8">
-                     <button 
-                        onClick={() => setActiveTab('PAYMENT')}
-                        className="w-full bg-slate-900 rounded-[4rem] p-12 text-white space-y-10 shadow-xl cursor-pointer hover:bg-slate-800 transition-all group text-left relative overflow-hidden"
-                     >
-                        <div className="relative z-10 space-y-10">
-                           <h3 className="text-xl font-black uppercase tracking-tight text-red-500 text-center group-hover:scale-105 transition-transform">National Revenue</h3>
-                           <div className="text-center space-y-2">
-                              <Banknote className="w-16 h-16 text-emerald-500 mx-auto mb-4 group-hover:scale-110 transition-transform" />
-                              <p className="text-3xl font-black tracking-tighter">{stats.revenue}</p>
-                              <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Settled via Treasury</p>
-                           </div>
-                           <div className="pt-6 border-t border-white/5 text-center">
-                              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2">View Payment Registry <ExternalLink className="w-3 h-3" /></p>
-                           </div>
-                        </div>
-                        <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-emerald-500/5 rounded-full blur-3xl" />
-                     </button>
+                  ))}
+               </div>
 
-                     <div className="p-10 bg-white border-2 border-slate-100 rounded-[3.5rem] shadow-sm space-y-6">
-                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 border-b pb-4">Audit Snippet</h4>
-                        <div className="space-y-4">
-                           {logs.slice(0, 3).map(log => (
-                             <div key={log.id} className="space-y-1">
-                                <p className="text-[9px] font-black text-red-600 uppercase">{log.action}</p>
-                                <p className="text-[10px] text-slate-500 line-clamp-1">{log.details}</p>
+               {isEditingMethod && (
+                 <div className="fixed inset-0 z-[1000] bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-6">
+                    <div className="bg-white w-full max-w-xl rounded-[4rem] shadow-2xl overflow-hidden flex flex-col border-t-[12px] border-slate-900">
+                       <div className="p-10 border-b flex items-center justify-between">
+                          <h3 className="text-2xl font-black uppercase">Payment Channel Settings</h3>
+                          <button onClick={() => setIsEditingMethod(false)} className="p-4 hover:text-red-600"><X /></button>
+                       </div>
+                       <form className="p-10 space-y-8" onSubmit={async (e) => {
+                          e.preventDefault();
+                          if (methodForm.id) await updatePaymentMethod(methodForm.id, methodForm);
+                          else await addPaymentMethod({ ...methodForm as any, id: `meth_${Date.now()}` });
+                          setIsEditingMethod(false);
+                       }}>
+                          <div className="grid md:grid-cols-2 gap-6">
+                             <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 ml-2">Method Name</label><input required value={methodForm.name} onChange={e => setMethodForm({...methodForm, name: e.target.value})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold uppercase" /></div>
+                             <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 ml-2">Channel Type</label><select value={methodForm.type} onChange={e => setMethodForm({...methodForm, type: e.target.value as any})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold uppercase"><option value="Bank">Bank Transfer</option><option value="Binance">Binance Exchange</option><option value="Cash">Physical Cash</option><option value="Online">E-Gateway</option></select></div>
+                          </div>
+                          
+                          <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 ml-2">Account Details / Instructions</label><textarea required rows={4} value={methodForm.details} onChange={e => setMethodForm({...methodForm, details: e.target.value})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none" placeholder="Acc Number, Name, Branch etc..." /></div>
+                          
+                          {methodForm.type === 'Binance' && (
+                             <div className="grid grid-cols-2 gap-6 p-6 bg-yellow-50 rounded-[2.5rem] border border-yellow-100">
+                                <div className="space-y-2"><label className="text-[8px] font-black uppercase text-yellow-600">Binance UID</label><input value={methodForm.binanceUid} onChange={e => setMethodForm({...methodForm, binanceUid: e.target.value})} className="w-full p-4 bg-white border-2 border-yellow-100 rounded-xl font-mono text-[10px] font-bold" /></div>
+                                <div className="space-y-2"><label className="text-[8px] font-black uppercase text-yellow-600">Network Type</label><input value={methodForm.networkType} onChange={e => setMethodForm({...methodForm, networkType: e.target.value})} className="w-full p-4 bg-white border-2 border-yellow-100 rounded-xl font-bold text-[10px]" placeholder="USDT TRC20" /></div>
+                                <div className="col-span-full space-y-2"><label className="text-[8px] font-black uppercase text-yellow-600">Binance Email</label><input value={methodForm.binanceEmail} onChange={e => setMethodForm({...methodForm, binanceEmail: e.target.value})} className="w-full p-4 bg-white border-2 border-yellow-100 rounded-xl font-bold text-[10px]" /></div>
                              </div>
-                           ))}
-                           <button onClick={() => setActiveTab('DEVICE')} className="w-full py-3 bg-slate-50 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-100 transition-all">Full System Logs</button>
-                        </div>
+                          )}
+
+                          <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 ml-2">QR Code / Logo Asset</label><div className="relative p-10 border-4 border-dashed border-slate-100 rounded-[2.5rem] text-center hover:border-red-600 transition-all bg-slate-50 cursor-pointer overflow-hidden"><input type="file" onChange={(e) => {
+                             const file = e.target.files?.[0];
+                             if (file) {
+                               const r = new FileReader();
+                               r.onloadend = () => setMethodForm({...methodForm, qrCode: r.result as string});
+                               r.readAsDataURL(file);
+                             }
+                          }} className="absolute inset-0 opacity-0 cursor-pointer z-10" /><QrCode className="mx-auto w-10 h-10 text-slate-300 mb-2" /><p className="text-[10px] font-black uppercase text-slate-400">Upload Image</p>{methodForm.qrCode && <div className="absolute inset-0 bg-emerald-500 flex items-center justify-center text-white text-[10px] font-black uppercase">Asset Ready <CheckCircle2 className="ml-2 w-4 h-4" /></div>}</div></div>
+
+                          <button type="submit" className="w-full py-6 bg-slate-900 text-white rounded-3xl font-black uppercase tracking-[0.2em] shadow-xl hover:bg-red-600 transition-all flex items-center justify-center gap-3"><Save className="w-5 h-5" /> Commit Channel</button>
+                       </form>
+                    </div>
+                 </div>
+               )}
+            </div>
+          )}
+
+          {activeTab === 'INFORMATION' && (
+            <div className="space-y-12 animate-in slide-in-from-bottom-8">
+               <div className="flex justify-between items-center bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm">
+                  <div>
+                    <h3 className="text-3xl font-black uppercase tracking-tighter">Information Desk</h3>
+                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest italic">Manage Rules, Cost Summaries, and Dispatch Updates</p>
+                  </div>
+                  <button onClick={() => { setInfoForm({ appType: DocType.WORK_PERMIT, category: 'Rules', status: 'Active' }); setIsEditingInfo(true); }} className="px-10 py-5 bg-red-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl flex items-center gap-3 hover:bg-red-700 transition-all">
+                    <PlusCircle className="w-5 h-5" /> Dispatch Info
+                  </button>
+               </div>
+
+               <div className="bg-white rounded-[4rem] border border-slate-100 shadow-sm overflow-hidden">
+                  <table className="w-full text-left">
+                     <thead className="bg-slate-50 border-b text-[10px] font-black uppercase text-slate-400">
+                        <tr>
+                           <th className="px-8 py-6">App Category</th>
+                           <th className="px-8 py-6">Type</th>
+                           <th className="px-8 py-6">Headline</th>
+                           <th className="px-8 py-6">Status</th>
+                           <th className="px-8 py-6 text-right">Control</th>
+                        </tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-50">
+                        {infoEntries.map(entry => (
+                          <tr key={entry.id} className="hover:bg-slate-50 transition-colors">
+                             <td className="px-8 py-6"><span className="px-3 py-1 bg-slate-100 rounded-lg text-[9px] font-black uppercase">{entry.appType}</span></td>
+                             <td className="px-8 py-6"><span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase ${entry.category === 'Cost' ? 'text-emerald-600' : entry.category === 'Update' ? 'text-blue-600' : 'text-slate-400'}`}>{entry.category}</span></td>
+                             <td className="px-8 py-6 text-xs font-bold uppercase truncate max-w-md">{entry.title}</td>
+                             <td className="px-8 py-6">
+                                <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase ${entry.status === 'Pinned' ? 'bg-red-100 text-red-600 animate-pulse' : entry.status === 'Active' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>{entry.status}</span>
+                             </td>
+                             <td className="px-8 py-6 text-right">
+                                <div className="flex justify-end gap-2">
+                                   <button onClick={() => { setInfoForm(entry); setIsEditingInfo(true); }} className="p-2 text-slate-300 hover:text-blue-600"><Pencil className="w-4 h-4" /></button>
+                                   <button onClick={() => deleteInfoEntry(entry.id)} className="p-2 text-slate-300 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                                </div>
+                             </td>
+                          </tr>
+                        ))}
+                     </tbody>
+                  </table>
+               </div>
+
+               {isEditingInfo && (
+                 <div className="fixed inset-0 z-[1000] bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-6">
+                    <div className="bg-white w-full max-w-2xl rounded-[4rem] shadow-2xl overflow-hidden flex flex-col border-t-[12px] border-red-600">
+                       <div className="p-10 border-b flex items-center justify-between">
+                          <h3 className="text-2xl font-black uppercase">Information Dispatch</h3>
+                          <button onClick={() => setIsEditingInfo(false)} className="p-4 hover:text-red-600"><X /></button>
+                       </div>
+                       <form className="p-10 space-y-8" onSubmit={async (e) => {
+                          e.preventDefault();
+                          if (infoForm.id) await updateInfoEntry(infoForm.id, infoForm);
+                          else await addInfoEntry({ ...infoForm as any, id: `info_${Date.now()}`, date: new Date().toLocaleDateString() });
+                          setIsEditingInfo(false);
+                       }}>
+                          <div className="grid md:grid-cols-2 gap-6">
+                             <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 ml-2">Application Area</label><select value={infoForm.appType} onChange={e => setInfoForm({...infoForm, appType: e.target.value as any})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold uppercase"><option value={DocType.WORK_PERMIT}>Work Permit</option><option value={DocType.VISA}>Visa</option><option value={DocType.TRC}>Residence Card</option></select></div>
+                             <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 ml-2">Topic Category</label><select value={infoForm.category} onChange={e => setInfoForm({...infoForm, category: e.target.value as any})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold uppercase"><option value="Rules">Rules & Req</option><option value="Cost">Fees & Costs</option><option value="Update">Policy Updates</option></select></div>
+                          </div>
+                          <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 ml-2">Dispatch Headline</label><input required value={infoForm.title} onChange={e => setInfoForm({...infoForm, title: e.target.value})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold uppercase" /></div>
+                          {infoForm.category === 'Cost' && (
+                             <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 ml-2">Cost Summary (e.g. 2.5M VND)</label><input required value={infoForm.amount} onChange={e => setInfoForm({...infoForm, amount: e.target.value})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-mono text-emerald-600 font-bold" /></div>
+                          )}
+                          <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 ml-2">Dossier Content</label><textarea required rows={5} value={infoForm.description} onChange={e => setInfoForm({...infoForm, description: e.target.value})} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-medium outline-none" /></div>
+                          
+                          <div className="flex gap-4">
+                             {['Active', 'Inactive', 'Pinned'].map(s => (
+                               <button key={s} type="button" onClick={() => setInfoForm({...infoForm, status: s as any})} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase border-2 transition-all ${infoForm.status === s ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-300'}`}>{s}</button>
+                             ))}
+                          </div>
+
+                          <button type="submit" className="w-full py-6 bg-red-600 text-white rounded-3xl font-black uppercase tracking-[0.2em] shadow-xl hover:bg-red-700 flex items-center justify-center gap-3"><Save className="w-5 h-5" /> Commit Dispatch</button>
+                       </form>
+                    </div>
+                 </div>
+               )}
+            </div>
+          )}
+
+          {activeTab === 'DEVICE' && (
+            <div className="space-y-12 animate-in slide-in-from-bottom-8">
+               <div className="grid md:grid-cols-3 gap-8">
+                  <div className="bg-slate-900 p-10 rounded-[3rem] text-white space-y-4 shadow-xl relative overflow-hidden">
+                     <div className="flex justify-between items-start relative z-10"><Monitor className="w-10 h-10 text-red-600" /><ShieldAlert className="w-6 h-6 text-red-600 animate-pulse" /></div>
+                     <div className="relative z-10">
+                        <p className="text-[10px] font-black uppercase text-white/50 tracking-widest">Total Monitored Nodes</p>
+                        <p className="text-5xl font-black tracking-tighter">{devices.length}</p>
+                     </div>
+                  </div>
+                  <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm space-y-4">
+                     <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl w-fit"><UserCheck className="w-10 h-10" /></div>
+                     <div>
+                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Active & Validated</p>
+                        <p className="text-5xl font-black text-slate-900 tracking-tighter">{devices.filter(d => d.status === 'Active').length}</p>
+                     </div>
+                  </div>
+                  <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm space-y-4">
+                     <div className="p-4 bg-red-50 text-red-600 rounded-2xl w-fit"><ShieldX className="w-10 h-10" /></div>
+                     <div>
+                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Compromised / Blocked</p>
+                        <p className="text-5xl font-black text-slate-900 tracking-tighter">{devices.filter(d => d.status === 'Blocked').length}</p>
                      </div>
                   </div>
                </div>
+
+               <div className="bg-white rounded-[4rem] border border-slate-100 shadow-sm overflow-hidden">
+                  <div className="p-10 border-b flex flex-wrap items-center gap-6 justify-between bg-slate-50">
+                     <div className="flex items-center gap-4"><Monitor className="w-6 h-6 text-red-600" /><h3 className="text-xl font-black uppercase text-slate-900">Device Integrity List</h3></div>
+                     <div className="flex gap-2">
+                        {['ALL', 'Active', 'Blocked', 'Suspended'].map(s => (
+                          <button key={s} onClick={() => setDeviceFilterStatus(s)} className={`px-5 py-2 rounded-full text-[9px] font-black uppercase transition-all ${deviceFilterStatus === s ? 'bg-slate-900 text-white' : 'bg-white text-slate-400 hover:text-slate-600'}`}>{s}</button>
+                        ))}
+                     </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                     <table className="w-full text-left">
+                        <thead className="bg-slate-50 border-b text-[10px] font-black uppercase text-slate-400">
+                           <tr>
+                              <th className="px-8 py-6">Hardware / Node</th>
+                              <th className="px-8 py-6">Origin (IP)</th>
+                              <th className="px-8 py-6">Geo-Location</th>
+                              <th className="px-8 py-6">Integrity</th>
+                              <th className="px-8 py-6">Timeline</th>
+                              <th className="px-8 py-6 text-right">Perimeter Control</th>
+                           </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                           {filteredDevices.map(device => (
+                             <tr key={device.id} className="hover:bg-slate-50 transition-colors group">
+                                <td className="px-8 py-6">
+                                   <div className="flex items-center gap-4">
+                                      <div className="p-3 bg-slate-100 text-slate-500 rounded-xl">
+                                         {device.deviceType === 'Mobile' ? <Smartphone className="w-5 h-5" /> : device.deviceType === 'Tablet' ? <Tablet className="w-5 h-5" /> : <Laptop className="w-5 h-5" />}
+                                      </div>
+                                      <div>
+                                         <p className="font-black text-xs uppercase text-slate-900">{device.deviceName}</p>
+                                         <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{device.browser} / {device.os}</p>
+                                      </div>
+                                   </div>
+                                </td>
+                                <td className="px-8 py-6 font-mono text-xs font-bold text-slate-400"><div className="flex items-center gap-2"><HardDrive className="w-3.5 h-3.5" /> {device.ip}</div></td>
+                                <td className="px-8 py-6">
+                                   <div className="text-[9px] font-black uppercase">
+                                      <p className="text-slate-900">{device.country}</p>
+                                      <p className="text-slate-400 italic">{device.city}, {device.region}</p>
+                                   </div>
+                                </td>
+                                <td className="px-8 py-6">
+                                   <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase ${
+                                      device.status === 'Active' ? 'bg-emerald-100 text-emerald-600' :
+                                      device.status === 'Blocked' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
+                                   }`}>{device.status}</span>
+                                </td>
+                                <td className="px-8 py-6 text-[9px] font-black uppercase text-slate-400">
+                                   <p>Last: {new Date(device.lastActive).toLocaleTimeString()}</p>
+                                   <p className="italic">Login: {new Date(device.loginTime).toLocaleDateString()}</p>
+                                </td>
+                                <td className="px-8 py-6 text-right">
+                                   <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      {device.status === 'Active' ? (
+                                        <>
+                                           <button onClick={() => updateDevice(device.id, 'Suspended')} className="p-2 bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white rounded-lg transition-all" title="Suspend"><Ban className="w-4 h-4" /></button>
+                                           <button onClick={() => updateDevice(device.id, 'Blocked')} className="p-2 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-lg transition-all" title="Block"><ShieldX className="w-4 h-4" /></button>
+                                        </>
+                                      ) : (
+                                        <button onClick={() => updateDevice(device.id, 'Active')} className="p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-lg transition-all" title="Trust"><UserCheck className="w-4 h-4" /></button>
+                                      )}
+                                      <button onClick={() => removeDevice(device.id)} className="p-2 bg-slate-100 text-slate-400 hover:bg-slate-900 hover:text-white rounded-lg transition-all" title="Flush"><Trash2 className="w-4 h-4" /></button>
+                                   </div>
+                                </td>
+                             </tr>
+                           ))}
+                        </tbody>
+                     </table>
+                  </div>
+               </div>
             </div>
           )}
 
-          {/* PAYMENT TAB */}
-          {activeTab === 'PAYMENT' && (
-            <div className="grid md:grid-cols-2 gap-10 animate-in fade-in duration-300">
-               {applications.filter(a => a.payment_receipt_file).map(app => (
-                 <div key={app.id} className="bg-white p-10 rounded-[4rem] border-2 border-slate-100 shadow-sm space-y-8">
-                    <div className="flex justify-between items-center"><p className="text-[10px] font-black text-slate-400 uppercase">TXN REF: {app.details?.paymentRef || 'MANUAL'}</p><span className="bg-emerald-50 text-emerald-600 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase">PAID</span></div>
-                    <div className="aspect-video rounded-[2.5rem] border-2 border-slate-100 overflow-hidden bg-slate-50 group cursor-zoom-in" onClick={() => setPreviewFile({url: app.payment_receipt_file!, label: 'Payment Receipt'})}>
-                       <img src={app.payment_receipt_file} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                    </div>
-                    <button className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest">Acknowledge Settlement</button>
-                 </div>
-               ))}
-            </div>
-          )}
-          
         </div>
       </main>
 
-      {/* Shared Inspector Modal */}
-      {selectedApp && (
-        <div className="fixed inset-0 z-[400] bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-4 lg:p-10 overflow-y-auto">
-          <div className="bg-white w-full max-w-6xl rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300 border-t-[10px] border-red-600">
-            <div className="p-8 border-b bg-slate-50 flex items-center justify-between">
-              <div className="flex items-center gap-6"><div className="p-5 bg-red-600 rounded-2xl text-white shadow-xl shadow-red-100"><FileSearch className="w-7 h-7" /></div><div><h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter leading-none">Dossier: {selectedApp.id}</h2><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{selectedApp.type} • Application Review</p></div></div>
-              <button onClick={() => setSelectedAppId(null)} className="p-4 bg-slate-100 rounded-full hover:bg-red-50 hover:text-red-600 transition-all"><X className="w-6 h-6" /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-12 lg:p-16 grid lg:grid-cols-3 gap-16">
-              <div className="lg:col-span-2 space-y-12">
-                 <div className="grid md:grid-cols-2 gap-10">
-                    {[{l: 'Name', v: selectedApp.fullName}, {l: 'Passport', v: selectedApp.passportNumber}, {l: 'Citizenship', v: selectedApp.nationality}, {l: 'Email', v: selectedApp.email}].map((f, i) => (
-                      <div key={i}><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{f.l}</p><p className="font-black text-xl uppercase tracking-tight text-slate-900">{f.v || 'EMPTY'}</p></div>
-                    ))}
-                 </div>
-                 <div className="border-t pt-10"><h3 className="text-xs font-black uppercase text-red-600 mb-6 tracking-widest">Document Evidence</h3><div className="grid grid-cols-2 gap-6">{[{l: 'ID Photo', u: selectedApp.photo_file}, {l: 'Passport Scan', u: selectedApp.passport_file}, {l: 'Visa/TRC Reference', u: selectedApp.visa_file || selectedApp.trc_file}].filter(x => x.u).map((file, idx) => (
-                    <div key={idx} className="space-y-2"><p className="text-[9px] font-black text-slate-500 uppercase text-center">{file.l}</p><div onClick={() => setPreviewFile({url: file.u!, label: file.l})} className="aspect-[3/4] bg-slate-50 rounded-3xl border-2 border-slate-100 overflow-hidden cursor-zoom-in relative group"><img src={file.u} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" /></div></div>
-                 ))}</div></div>
-              </div>
-              <div className="space-y-8">
-                 <div className="bg-slate-950 rounded-[3rem] p-10 text-white space-y-8">
-                    <p className="text-[10px] font-black uppercase text-red-500 tracking-[0.3em]">Decision Console</p>
-                    <button onClick={() => handleApprove(selectedApp)} className="w-full py-6 bg-emerald-600 hover:bg-emerald-500 text-white rounded-3xl font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3"><CheckCircle2 className="w-6 h-6" /> Seal & Verify</button>
-                    <button onClick={async () => {
-                      if(window.confirm("Reject this dossier?")) {
-                        await updateApplication(selectedApp.id, {status: 'Rejected'});
-                        setSelectedAppId(null);
-                      }
-                    }} className="w-full py-6 bg-white/5 text-white/40 hover:bg-red-600 hover:text-white rounded-3xl font-black uppercase tracking-widest transition-all border border-white/10 flex items-center justify-center gap-3"><Ban className="w-6 h-6" /> Reject File</button>
-                 </div>
-              </div>
-            </div>
-          </div>
+      {/* Media Previews */}
+      {previewFile && (
+        <div className="fixed inset-0 z-[1000] bg-black/98 backdrop-blur-3xl flex items-center justify-center p-8 animate-in zoom-in duration-500">
+           <button onClick={() => setPreviewFile(null)} className="absolute top-10 right-10 p-6 bg-white/10 text-white rounded-full hover:bg-red-600 transition-all shadow-2xl"><X className="w-10 h-10" /></button>
+           <div className="max-w-6xl w-full max-h-[85vh] bg-white rounded-[4rem] p-3 shadow-2xl overflow-hidden relative border-4 border-white/20">
+              <img src={previewFile} className="w-full h-full object-contain rounded-[3.5rem]" alt="Secure Artifact" />
+           </div>
         </div>
       )}
     </div>

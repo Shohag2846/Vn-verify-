@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { translations } from '../i18n';
@@ -16,6 +17,7 @@ const Navbar: React.FC<Props> = ({ language }) => {
     { label: t.aboutVn[language], path: '/about' },
     { label: t.government[language], path: '/government' },
     { label: t.primeMinister[language], path: '/pm' },
+    { label: language === 'en' ? 'Information' : 'Thông tin', path: '/information' },
     { label: t.news[language], path: '/news' },
     { label: t.resources[language], path: '/resources' },
     { label: t.workPermit[language], path: '/work-permit' },
@@ -39,7 +41,6 @@ const Navbar: React.FC<Props> = ({ language }) => {
                   }`}
                 >
                   {item.label}
-                  {/* Active Indicator Line */}
                   <span className={`absolute bottom-0 left-0 w-full h-1 bg-yellow-400 transition-all duration-300 ${
                     isActive ? 'opacity-100' : 'opacity-0 scale-x-0 group-hover:opacity-30 group-hover:scale-x-100'
                   }`} />

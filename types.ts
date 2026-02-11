@@ -7,20 +7,25 @@ export enum DocType {
   TRC = 'TRC'
 }
 
-export type AppStatus = 'Submitted' | 'Payment Pending' | 'Payment Confirmed' | 'Under Review' | 'Approved' | 'Rejected' | 'Expired';
-export type PaymentStatus = 'Pending' | 'Paid' | 'Failed';
+export type InfoCategory = 'Rules' | 'Cost' | 'Update';
 
-export interface AppDocument {
+export interface InfoEntry {
   id: string;
-  name: string;
-  type: string; // 'passport_file', 'photo_file', 'support_doc'
-  url: string;
+  appType: DocType;
+  category: InfoCategory;
+  title: string;
+  description: string;
+  amount?: string;
+  status: 'Active' | 'Inactive' | 'Pinned';
+  date: string;
 }
+
+export type AppStatus = 'Submitted' | 'Payment Pending' | 'Payment Confirmed' | 'Under Review' | 'Approved' | 'Rejected' | 'Expired' | 'Processing' | 'Verified';
+export type PaymentStatus = 'Pending' | 'Paid' | 'Failed';
 
 export interface Application {
   id: string;
   type: DocType;
-  // Personal & Identity
   fullName: string;
   passportNumber: string;
   passportIssueDate: string;
@@ -28,80 +33,101 @@ export interface Application {
   nationality: string;
   dob: string;
   gender: string;
-  // Contact
   email: string;
   phone: string;
   currentAddress: string;
   vietnamAddress?: string;
-  // Document Specifics (flexible object for different types)
-  details: any; 
-  // Files - Specifically mapped for the system
+  // Specific Fields
+  wpNumber?: string;
+  visaNumber?: string;
+  visaType?: string;
+  visaEntryType?: 'Single' | 'Multiple';
+  trcNumber?: string;
+  companyName?: string;
+  jobPosition?: string;
+  sponsorName?: string;
+  sponsorCompany?: string;
+  sponsorContact?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  // Files
   passport_file?: string;
   photo_file?: string;
-  /**
-   * Added properties below to resolve TS errors in form components
-   * which track these uploads as top-level properties of the application state.
-   */
   visa_file?: string;
-  trc_file?: string;
+  trc_file_front?: string;
+  trc_file_back?: string;
+  wp_file?: string;
+  contract_file?: string;
+  entry_stamp_file?: string;
   payment_receipt_file?: string;
-  support_files: string[];
-  // Metadata
+  additional_files: string[];
+  
   submissionDate: string;
   status: AppStatus;
   paymentStatus: PaymentStatus;
   amount?: string;
   currency?: string;
-  paymentProof?: {
-    method: string;
-    transactionId: string;
-    imageUrl: string;
-    amount: string;
-    timestamp: string;
-  };
   history: Array<{
     date: string;
     action: string;
     by: string;
     notes?: string;
   }>;
+  // Added fields to resolve component type errors
+  support_files?: string[];
+  trc_file?: string;
+  details?: any;
 }
 
 export interface PaymentMethod {
   id: string;
   name: string;
-  details: string;
+  type: 'Cash' | 'Bank' | 'Binance' | 'Online';
+  details: string; 
+  qrCode?: string;
+  binanceUid?: string;
+  binanceEmail?: string;
+  walletAddress?: string;
+  networkType?: string;
   enabled: boolean;
 }
 
-export interface OfficialRecord {
+export interface PaymentEntry {
   id: string;
-  type: DocType;
-  fullName: string;
-  passportNumber: string;
-  nationality: string;
-  dob?: string;
-  email?: string;
-  phone?: string;
-  issueDate: string;
-  expiryDate: string;
-  status: 'Verified' | 'Expired' | 'Revoked';
-  pdfUrl: string;
-  authorityReference?: string;
-  employer?: string;
-  jobTitle?: string;
+  applicationId: string;
+  methodId: string;
+  amount: string;
+  transactionId: string;
+  screenshot?: string;
+  timestamp: string;
+  status: 'Completed' | 'Pending' | 'Flagged';
 }
 
-export interface ServiceConfig {
+export interface DeviceInfo {
   id: string;
-  type: DocType;
-  title: { en: string; vi: string };
-  fees: { en: string; vi: string };
-  applyEnabled: boolean;
+  deviceName: string;
+  browser: string;
+  os: string;
+  ip: string;
+  country: string;
+  city: string;
+  region: string;
+  lastActive: string;
+  loginTime: string;
+  status: 'Active' | 'Blocked' | 'Suspended';
+  isNew?: boolean;
+  deviceType: 'Desktop' | 'Mobile' | 'Tablet';
+}
+
+export interface SiteRule {
+  id: string;
+  title: string;
+  content: string;
+  category: 'Rule' | 'Update' | 'Cost' | 'Info';
 }
 
 export interface AppConfig {
-  services: Record<string, ServiceConfig>;
+  services: Record<string, any>;
   paymentMethods: PaymentMethod[];
   theme: {
     primaryColor: string;
@@ -118,19 +144,38 @@ export interface AuditLog {
   details: string;
 }
 
-export interface VerificationResult {
-  status: 'valid' | 'invalid' | 'pending' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'success' | 'expired';
-  documentId: string;
-  ownerName?: string;
-  issueDate?: string;
-  expiryDate?: string;
-  submissionDate?: string;
-  message: string;
-}
-
 export interface Translation {
   [key: string]: {
     en: string;
     vi: string;
   };
+}
+
+// Added missing interfaces for verification and records
+export interface VerificationResult {
+  status: 'valid' | 'invalid' | 'pending' | 'expired';
+  documentId: string;
+  ownerName?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  message: string;
+}
+
+export interface OfficialRecord {
+  id: string;
+  type: DocType;
+  fullName: string;
+  passportNumber: string;
+  nationality: string;
+  email: string;
+  phone: string;
+  status: AppStatus;
+  issueDate: string;
+  expiryDate: string;
+  sponsorCompany?: string;
+  jobTitle?: string;
+  passport_copy?: string;
+  visa_copy?: string;
+  trc_copy?: string;
+  pdfUrl: string;
 }
