@@ -82,27 +82,25 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       if (appData) setApplications(appData);
       if (recData) {
-        const mappedRecords: OfficialRecord[] = recData.map(r => {
-          const url = r.file_url || r.fileUrl || r.pdf_url || r.pdfUrl || r.document_url || '';
-          return {
-            id: r.id,
-            fullName: r.full_name || r.fullName || 'UNNAMED',
-            passportNumber: r.passport_number || r.passportNumber || 'N/A',
-            dob: r.dob || '',
-            company_name: r.company_name || r.sponsorCompany || '',
-            type: (r.application_type || r.type) as DocType,
-            status: r.status || 'Verified',
-            issueDate: r.issue_date || r.issueDate || '',
-            expiryDate: r.expiry_date || r.expiryDate || '',
-            file_url: url,
-            pdfUrl: url,
-            nationality: r.nationality || '',
-            email: r.email || '',
-            phone: r.phone || '',
-            sponsorCompany: r.company_name || r.sponsorCompany,
-            jobTitle: r.jobTitle || r.job_title || ''
-          };
-        });
+        const mappedRecords: OfficialRecord[] = recData.map(r => ({
+          id: r.id,
+          fullName: r.full_name || r.fullName || 'UNNAMED',
+          passportNumber: r.passport_number || r.passportNumber || 'N/A',
+          dob: r.dob || '',
+          company_name: r.company_name || r.sponsorCompany || '',
+          type: (r.type || r.application_type) as DocType,
+          status: r.status || 'Verified',
+          issueDate: r.issue_date || r.issueDate || '',
+          expiryDate: r.expiry_date || r.expiryDate || '',
+          file_url: r.file_url || r.fileUrl || '',
+          pdfUrl: r.file_url || r.fileUrl || '',
+          nationality: r.nationality || '',
+          email: r.email || '',
+          phone: r.phone || '',
+          sponsorCompany: r.company_name || r.sponsorCompany,
+          jobTitle: r.job_title || r.jobTitle || '',
+          vietnamAddress: r.vietnam_address || r.vietnamAddress || ''
+        }));
         setRecords(mappedRecords);
       }
       if (infoData) setInfoEntries(infoData);

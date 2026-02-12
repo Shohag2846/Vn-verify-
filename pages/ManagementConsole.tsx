@@ -33,12 +33,10 @@ const ManagementConsole: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>('DASHBOARD');
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Modals/UI State
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [showInfoForm, setShowInfoForm] = useState(false);
   const [editingInfo, setEditingInfo] = useState<InfoEntry | null>(null);
 
-  // Record Management State
   const [showRecordForm, setShowRecordForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState<OfficialRecord | null>(null);
   const [recordAppType, setRecordAppType] = useState<RecordAppType>('Work Permit');
@@ -94,67 +92,45 @@ const ManagementConsole: React.FC = () => {
     let finalFileUrl = recordForm.file_url || '';
 
     try {
-      // 1. ফাইল আপলোড চেকিং
       if (recordFile) {
         const fileExt = recordFile.name.split('.').pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
         
-        console.log("Attempting upload to 'documents' bucket...");
-        
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('documents')
-          .upload(fileName, recordFile, { 
-            cacheControl: '3600',
-            upsert: false 
-          });
+          .upload(fileName, recordFile, { upsert: false });
 
         if (uploadError) {
-          console.error("Supabase Storage Error:", uploadError);
-          let errorMsg = "ফাইল আপলোড করা যায়নি।\n\nসম্ভাব্য কারণ:\n";
-          if (uploadError.message.includes("Bucket not found")) {
-            errorMsg += "- 'documents' নামের বাকেটটি সুপাবেসে তৈরি করা নেই।";
-          } else if (uploadError.message.includes("row-level security") || uploadError.message.includes("403")) {
-            errorMsg += "- বাকেটের 'Policy' সেট করা নেই। ড্যাশবোর্ড থেকে INSERT পলিসি এলাউ করুন।";
-          } else {
-            errorMsg += `- ${uploadError.message}`;
-          }
-
-          const confirmWithoutFile = window.confirm(`${errorMsg}\n\nআপনি কি ফাইল ছাড়াই শুধুমাত্র তথ্যগুলো সেভ করতে চান?`);
+          console.error("Storage Error:", uploadError);
+          const confirmWithoutFile = window.confirm(`ফাইল আপলোড করা যায়নি (${uploadError.message})। আপনি কি ফাইল ছাড়াই তথ্যগুলো সেভ করতে চান?`);
           if (!confirmWithoutFile) {
             setIsSyncing(false);
             return;
           }
-          finalFileUrl = ''; // Continue without file
+          finalFileUrl = ''; 
         } else {
           const { data: { publicUrl } } = supabase.storage
             .from('documents')
             .getPublicUrl(fileName);
           finalFileUrl = publicUrl;
-          console.log("File uploaded successfully:", publicUrl);
         }
       }
 
-      // 2. ডাটাবেসে সেভ করা
+      // কলামের নামগুলো আপনার ডাটাবেসের সাথে মিলিয়ে সেট করা হয়েছে
       const payload: any = {
         full_name: recordForm.fullName,
-        fullName: recordForm.fullName,
         passport_number: recordForm.passportNumber?.toUpperCase(),
-        passportNumber: recordForm.passportNumber?.toUpperCase(),
-        dob: recordForm.dob,
+        dob: recordForm.dob || null,
         company_name: recordForm.company_name || 'N/A',
-        application_type: recordAppType.toUpperCase().replace(' ', '_'),
         status: recordForm.status || 'Verified',
         file_url: finalFileUrl,
-        fileUrl: finalFileUrl,
-        pdf_url: finalFileUrl,
         issue_date: recordForm.issueDate || new Date().toISOString().split('T')[0],
-        expiry_date: recordForm.expiryDate,
-        nationality: recordForm.nationality,
-        job_title: recordForm.jobTitle,
-        jobTitle: recordForm.jobTitle,
-        email: recordForm.email,
-        phone: recordForm.phone,
-        vietnamAddress: recordForm.vietnamAddress,
+        expiry_date: recordForm.expiryDate || null,
+        nationality: recordForm.nationality || '',
+        job_title: recordForm.jobTitle || '',
+        email: recordForm.email || '',
+        phone: recordForm.phone || '',
+        vietnam_address: recordForm.vietnamAddress || '',
         type: recordAppType === 'Visa' ? DocType.VISA : 
               recordAppType === 'TRC' ? DocType.TRC : 
               recordAppType === 'Passport' ? DocType.PASSPORT : 
@@ -172,14 +148,14 @@ const ManagementConsole: React.FC = () => {
         if (insertError) throw insertError;
       }
 
-      alert('রেজিস্ট্রি ডাটাবেসে সেভ হয়েছে!');
+      alert('রেজিস্ট্রি ডাটাবেসে সফলভাবে সেভ হয়েছে!');
       setShowRecordForm(false);
       resetRecordForm();
       await refreshAllData();
 
     } catch (err: any) {
       console.error("Database Save Error:", err);
-      alert(`ডাটাবেস এরর: ${err.message || "কানেকশন ফেইল করেছে।"}`);
+      alert(`ডাটাবেস এরর: ${err.message}\n\nদয়া করে নিশ্চিত করুন আপনি SQL কোডটি সুপাবেসে রান করেছেন।`);
     } finally {
       setIsSyncing(false);
     }
@@ -187,13 +163,10 @@ const ManagementConsole: React.FC = () => {
 
   const handleDeleteRecord = async (id: string, fileUrl?: string) => {
     if (!window.confirm('Delete this record permanently?')) return;
-    
     try {
       if (fileUrl) {
         const filePath = fileUrl.split('/').pop();
-        if (filePath) {
-          await supabase.storage.from('documents').remove([filePath]).catch(() => null);
-        }
+        if (filePath) await supabase.storage.from('documents').remove([filePath]).catch(() => null);
       }
       const { error } = await supabase.from('records').delete().eq('id', id);
       if (error) throw error;
@@ -543,7 +516,6 @@ const ManagementConsole: React.FC = () => {
         </div>
       </main>
 
-      {/* Intake Modal */}
       {showRecordForm && (
         <div className="fixed inset-0 z-[1000] bg-slate-950/90 backdrop-blur-2xl flex items-center justify-center p-6 animate-in zoom-in duration-300">
           <div className="max-w-4xl w-full bg-white rounded-[4rem] p-12 md:p-16 shadow-2xl space-y-12 relative overflow-hidden flex flex-col max-h-[90vh]">
@@ -608,7 +580,6 @@ const ManagementConsole: React.FC = () => {
         </div>
       )}
 
-      {/* Info Modal */}
       {showInfoForm && (
         <div className="fixed inset-0 z-[1000] bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-6 animate-in zoom-in duration-300">
           <div className="max-w-2xl w-full bg-white rounded-[3.5rem] p-12 shadow-2xl space-y-8 relative overflow-hidden">
@@ -627,7 +598,6 @@ const ManagementConsole: React.FC = () => {
         </div>
       )}
 
-      {/* App Detail Modal */}
       {selectedApp && (
         <div className="fixed inset-0 z-[1000] bg-slate-950/95 backdrop-blur-2xl flex items-center justify-center p-6 animate-in zoom-in duration-300">
            <div className="max-w-4xl w-full max-h-[90vh] bg-white rounded-[4rem] shadow-2xl overflow-hidden relative border-t-[16px] border-red-600 flex flex-col">
