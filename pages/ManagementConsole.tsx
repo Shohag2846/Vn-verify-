@@ -100,15 +100,7 @@ const ManagementConsole: React.FC = () => {
           .from('documents')
           .upload(fileName, recordFile, { upsert: false });
 
-        if (uploadError) {
-          console.error("Storage Error:", uploadError);
-          const confirmWithoutFile = window.confirm(`ফাইল আপলোড করা যায়নি (${uploadError.message})। আপনি কি ফাইল ছাড়াই তথ্যগুলো সেভ করতে চান?`);
-          if (!confirmWithoutFile) {
-            setIsSyncing(false);
-            return;
-          }
-          finalFileUrl = ''; 
-        } else {
+        if (!uploadError) {
           const { data: { publicUrl } } = supabase.storage
             .from('documents')
             .getPublicUrl(fileName);
@@ -116,21 +108,42 @@ const ManagementConsole: React.FC = () => {
         }
       }
 
-      // কলামের নামগুলো আপনার ডাটাবেসের সাথে মিলিয়ে সেট করা হয়েছে
+      // "Dual-Key" Payload: ডাটাবেস টেবিলে কলামের নাম যেভাবেই থাকুক, এটি কাজ করবে।
       const payload: any = {
+        // Full Name handling
+        fullName: recordForm.fullName,
         full_name: recordForm.fullName,
+        
+        // Passport handling
+        passportNumber: recordForm.passportNumber?.toUpperCase(),
         passport_number: recordForm.passportNumber?.toUpperCase(),
+        
+        // Address handling
+        vietnamAddress: recordForm.vietnamAddress || '',
+        vietnam_address: recordForm.vietnamAddress || '',
+        
+        // Job Title handling
+        jobTitle: recordForm.jobTitle || '',
+        job_title: recordForm.jobTitle || '',
+        
+        // Dates
         dob: recordForm.dob || null,
+        issueDate: recordForm.issueDate || new Date().toISOString().split('T')[0],
+        issue_date: recordForm.issueDate || new Date().toISOString().split('T')[0],
+        expiryDate: recordForm.expiryDate || null,
+        expiry_date: recordForm.expiryDate || null,
+        
+        // Company
         company_name: recordForm.company_name || 'N/A',
+        sponsorCompany: recordForm.company_name || 'N/A',
+        
+        // Others
         status: recordForm.status || 'Verified',
         file_url: finalFileUrl,
-        issue_date: recordForm.issueDate || new Date().toISOString().split('T')[0],
-        expiry_date: recordForm.expiryDate || null,
+        fileUrl: finalFileUrl,
         nationality: recordForm.nationality || '',
-        job_title: recordForm.jobTitle || '',
         email: recordForm.email || '',
         phone: recordForm.phone || '',
-        vietnam_address: recordForm.vietnamAddress || '',
         type: recordAppType === 'Visa' ? DocType.VISA : 
               recordAppType === 'TRC' ? DocType.TRC : 
               recordAppType === 'Passport' ? DocType.PASSPORT : 
@@ -148,14 +161,14 @@ const ManagementConsole: React.FC = () => {
         if (insertError) throw insertError;
       }
 
-      alert('রেজিস্ট্রি ডাটাবেসে সফলভাবে সেভ হয়েছে!');
+      alert('রেজিস্ট্রি আপডেট সফল হয়েছে!');
       setShowRecordForm(false);
       resetRecordForm();
       await refreshAllData();
 
     } catch (err: any) {
       console.error("Database Save Error:", err);
-      alert(`ডাটাবেস এরর: ${err.message}\n\nদয়া করে নিশ্চিত করুন আপনি SQL কোডটি সুপাবেসে রান করেছেন।`);
+      alert(`ডাটাবেস এরর: ${err.message}\n\nআপনার ডাটাবেস টেবিলে 'fullName' কলামটি NULL রাখা সম্ভব নয়। দয়া করে সব তথ্য পূরণ করুন।`);
     } finally {
       setIsSyncing(false);
     }
@@ -208,7 +221,7 @@ const ManagementConsole: React.FC = () => {
   if (!isAuth) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-        <div className="bg-white rounded-[3rem] shadow-2xl p-12 w-full max-w-md border-t-[16px] border-red-600">
+        <div className="bg-white rounded-[3rem] shadow-2xl p-12 w-full max-md border-t-[16px] border-red-600">
           <div className="text-center mb-10">
             <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Emblem_of_Vietnam.svg/200px-Emblem_of_Vietnam.svg.png" className="w-20 mx-auto mb-6" alt="Emblem" />
             <h1 className="text-3xl font-black text-slate-900 uppercase italic tracking-tighter">Command Node</h1>
