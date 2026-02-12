@@ -108,22 +108,48 @@ const ManagementConsole: React.FC = () => {
         }
       }
 
-      // কলামের নামগুলো হুবহু সুপাবেস টেবিলের snake_case ফরম্যাটে দেওয়া হয়েছে
-      // camelCase কীগুলো এখান থেকে মুছে ফেলা হয়েছে যাতে "Column not found" এরর না আসে
+      // "Ultimate Payload": ডাটাবেসের কলামের নাম যেভাবেই থাকুক (fullName অথবা full_name), 
+      // এটি সব কভার করবে যাতে Not-Null Constraint এরর না আসে।
       const payload: any = {
+        // Name fields
+        fullName: recordForm.fullName || '',
         full_name: recordForm.fullName || '',
+        
+        // Passport fields
+        passportNumber: (recordForm.passportNumber || '').toUpperCase(),
         passport_number: (recordForm.passportNumber || '').toUpperCase(),
+        
+        // Date of Birth
         dob: recordForm.dob || null,
+        
+        // Nationality
         nationality: recordForm.nationality || '',
+        
+        // Company fields
         company_name: recordForm.company_name || 'N/A',
+        sponsorCompany: recordForm.company_name || 'N/A',
+        
+        // Job/Address
+        jobTitle: recordForm.jobTitle || '',
         job_title: recordForm.jobTitle || '',
+        vietnamAddress: recordForm.vietnamAddress || '',
+        vietnam_address: recordForm.vietnamAddress || '',
+        
+        // Status & Dates
         status: recordForm.status || 'Verified',
+        issueDate: recordForm.issueDate || new Date().toISOString().split('T')[0],
         issue_date: recordForm.issueDate || new Date().toISOString().split('T')[0],
+        expiryDate: recordForm.expiryDate || null,
         expiry_date: recordForm.expiryDate || null,
+        
+        // Contact
         email: recordForm.email || '',
         phone: recordForm.phone || '',
-        vietnam_address: recordForm.vietnamAddress || '',
+        
+        // Artifacts
         file_url: finalFileUrl,
+        fileUrl: finalFileUrl,
+        
         type: recordAppType === 'Visa' ? DocType.VISA : 
               recordAppType === 'TRC' ? DocType.TRC : 
               recordAppType === 'Passport' ? DocType.PASSPORT : 
@@ -141,14 +167,14 @@ const ManagementConsole: React.FC = () => {
         if (insertError) throw insertError;
       }
 
-      alert('রেজিস্ট্রি ডাটাবেস আপডেট সফল হয়েছে!');
+      alert('রেজিস্ট্রি আপডেট সফল হয়েছে!');
       setShowRecordForm(false);
       resetRecordForm();
       await refreshAllData();
 
     } catch (err: any) {
       console.error("Database Save Error:", err);
-      alert(`ডাটাবেস এরর: ${err.message || 'Unknown Error'}\n\nদয়া করে সুপাবেসে 'records' টেবিলের কলামগুলো চেক করুন।`);
+      alert(`ডাটাবেস এরর: ${err.message}\n\nপরামর্শ: আপনি সুপাবেস ড্যাশবোর্ডে গিয়ে 'records' টেবিলের 'fullName' কলামটি 'Not-null' থেকে সরিয়ে 'Allow Null' করে দিতে পারেন।`);
     } finally {
       setIsSyncing(false);
     }
@@ -540,7 +566,15 @@ const ManagementConsole: React.FC = () => {
                   <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase ml-4">Employer / Sponsoring Entity</label><input value={recordForm.company_name} onChange={e => setRecordForm({...recordForm, company_name: e.target.value})} className="w-full p-6 bg-slate-50 border-2 border-slate-100 rounded-3xl font-bold uppercase focus:border-red-600 outline-none" placeholder="COMPANY NAME" /></div>
                 )}
                 {recordAppType === 'Visa' && (
-                  <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase ml-4">Visa Category / Type</label><input value={recordForm.jobTitle} onChange={e => setRecordForm({...recordForm, jobTitle: e.target.value})} className="w-full p-6 bg-slate-50 border-2 border-slate-100 rounded-3xl font-bold uppercase focus:border-red-600 outline-none" placeholder="e.g. DN, LD, DL" /></div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-4">Visa Category / Type</label>
+                    <input 
+                      value={recordForm.jobTitle} 
+                      onChange={e => setRecordForm({...recordForm, jobTitle: e.target.value})} 
+                      className="w-full p-6 bg-slate-50 border-2 border-slate-100 rounded-3xl font-bold uppercase focus:border-red-600 outline-none" 
+                      placeholder="e.g. DN, LD, DL" 
+                    />
+                  </div>
                 )}
                 {recordAppType !== 'Contact' && (
                   <>
