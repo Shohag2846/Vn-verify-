@@ -1,10 +1,14 @@
 
 export type Language = 'en' | 'vi';
 
+export type Translation = Record<string, Record<Language, string>>;
+
 export enum DocType {
   WORK_PERMIT = 'WORK_PERMIT',
   VISA = 'VISA',
-  TRC = 'TRC'
+  TRC = 'TRC',
+  PASSPORT = 'PASSPORT',
+  CONTACT = 'CONTACT'
 }
 
 export type InfoCategory = 'Rules' | 'Cost' | 'Update';
@@ -18,6 +22,15 @@ export interface InfoEntry {
   amount?: string;
   status: 'Active' | 'Inactive' | 'Pinned';
   date: string;
+}
+
+export interface VerificationResult {
+  status: 'valid' | 'invalid' | 'pending' | 'expired';
+  documentId: string;
+  ownerName?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  message: string;
 }
 
 export type AppStatus = 'Submitted' | 'Payment Pending' | 'Payment Confirmed' | 'Under Review' | 'Approved' | 'Rejected' | 'Expired' | 'Processing' | 'Verified';
@@ -37,7 +50,6 @@ export interface Application {
   phone: string;
   currentAddress: string;
   vietnamAddress?: string;
-  // Specific Fields
   wpNumber?: string;
   visaNumber?: string;
   visaType?: string;
@@ -50,7 +62,6 @@ export interface Application {
   sponsorContact?: string;
   issueDate?: string;
   expiryDate?: string;
-  // Files
   passport_file?: string;
   photo_file?: string;
   visa_file?: string;
@@ -61,7 +72,6 @@ export interface Application {
   entry_stamp_file?: string;
   payment_receipt_file?: string;
   additional_files: string[];
-  
   submissionDate: string;
   status: AppStatus;
   paymentStatus: PaymentStatus;
@@ -73,7 +83,6 @@ export interface Application {
     by: string;
     notes?: string;
   }>;
-  // Added fields to resolve component type errors
   support_files?: string[];
   trc_file?: string;
   details?: any;
@@ -92,15 +101,16 @@ export interface PaymentMethod {
   enabled: boolean;
 }
 
-export interface PaymentEntry {
+export interface Transaction {
   id: string;
+  date: string;
   applicationId: string;
+  applicantName: string;
   methodId: string;
-  amount: string;
-  transactionId: string;
-  screenshot?: string;
-  timestamp: string;
+  methodName: string;
+  amount: number;
   status: 'Completed' | 'Pending' | 'Flagged';
+  type: 'Credit' | 'Debit';
 }
 
 export interface DeviceInfo {
@@ -115,7 +125,6 @@ export interface DeviceInfo {
   lastActive: string;
   loginTime: string;
   status: 'Active' | 'Blocked' | 'Suspended';
-  isNew?: boolean;
   deviceType: 'Desktop' | 'Mobile' | 'Tablet';
 }
 
@@ -144,23 +153,6 @@ export interface AuditLog {
   details: string;
 }
 
-export interface Translation {
-  [key: string]: {
-    en: string;
-    vi: string;
-  };
-}
-
-// Added missing interfaces for verification and records
-export interface VerificationResult {
-  status: 'valid' | 'invalid' | 'pending' | 'expired';
-  documentId: string;
-  ownerName?: string;
-  issueDate?: string;
-  expiryDate?: string;
-  message: string;
-}
-
 export interface OfficialRecord {
   id: string;
   type: DocType;
@@ -178,8 +170,11 @@ export interface OfficialRecord {
   visa_copy?: string;
   trc_copy?: string;
   pdfUrl: string;
-  // NEW FIELDS
   dob: string;
   company_name: string;
   file_url?: string;
+  vietnamAddress?: string;
+  contractNumber?: string;
+  entryDate?: string;
+  workPosition?: string;
 }
