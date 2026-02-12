@@ -108,42 +108,22 @@ const ManagementConsole: React.FC = () => {
         }
       }
 
-      // "Dual-Key" Payload: ডাটাবেস টেবিলে কলামের নাম যেভাবেই থাকুক, এটি কাজ করবে।
+      // কলামের নামগুলো হুবহু সুপাবেস টেবিলের snake_case ফরম্যাটে দেওয়া হয়েছে
+      // camelCase কীগুলো এখান থেকে মুছে ফেলা হয়েছে যাতে "Column not found" এরর না আসে
       const payload: any = {
-        // Full Name handling
-        fullName: recordForm.fullName,
-        full_name: recordForm.fullName,
-        
-        // Passport handling
-        passportNumber: recordForm.passportNumber?.toUpperCase(),
-        passport_number: recordForm.passportNumber?.toUpperCase(),
-        
-        // Address handling
-        vietnamAddress: recordForm.vietnamAddress || '',
-        vietnam_address: recordForm.vietnamAddress || '',
-        
-        // Job Title handling
-        jobTitle: recordForm.jobTitle || '',
-        job_title: recordForm.jobTitle || '',
-        
-        // Dates
+        full_name: recordForm.fullName || '',
+        passport_number: (recordForm.passportNumber || '').toUpperCase(),
         dob: recordForm.dob || null,
-        issueDate: recordForm.issueDate || new Date().toISOString().split('T')[0],
-        issue_date: recordForm.issueDate || new Date().toISOString().split('T')[0],
-        expiryDate: recordForm.expiryDate || null,
-        expiry_date: recordForm.expiryDate || null,
-        
-        // Company
-        company_name: recordForm.company_name || 'N/A',
-        sponsorCompany: recordForm.company_name || 'N/A',
-        
-        // Others
-        status: recordForm.status || 'Verified',
-        file_url: finalFileUrl,
-        fileUrl: finalFileUrl,
         nationality: recordForm.nationality || '',
+        company_name: recordForm.company_name || 'N/A',
+        job_title: recordForm.jobTitle || '',
+        status: recordForm.status || 'Verified',
+        issue_date: recordForm.issueDate || new Date().toISOString().split('T')[0],
+        expiry_date: recordForm.expiryDate || null,
         email: recordForm.email || '',
         phone: recordForm.phone || '',
+        vietnam_address: recordForm.vietnamAddress || '',
+        file_url: finalFileUrl,
         type: recordAppType === 'Visa' ? DocType.VISA : 
               recordAppType === 'TRC' ? DocType.TRC : 
               recordAppType === 'Passport' ? DocType.PASSPORT : 
@@ -161,14 +141,14 @@ const ManagementConsole: React.FC = () => {
         if (insertError) throw insertError;
       }
 
-      alert('রেজিস্ট্রি আপডেট সফল হয়েছে!');
+      alert('রেজিস্ট্রি ডাটাবেস আপডেট সফল হয়েছে!');
       setShowRecordForm(false);
       resetRecordForm();
       await refreshAllData();
 
     } catch (err: any) {
       console.error("Database Save Error:", err);
-      alert(`ডাটাবেস এরর: ${err.message}\n\nআপনার ডাটাবেস টেবিলে 'fullName' কলামটি NULL রাখা সম্ভব নয়। দয়া করে সব তথ্য পূরণ করুন।`);
+      alert(`ডাটাবেস এরর: ${err.message || 'Unknown Error'}\n\nদয়া করে সুপাবেসে 'records' টেবিলের কলামগুলো চেক করুন।`);
     } finally {
       setIsSyncing(false);
     }

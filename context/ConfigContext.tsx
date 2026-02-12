@@ -84,22 +84,22 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (recData) {
         const mappedRecords: OfficialRecord[] = recData.map(r => ({
           id: r.id,
-          fullName: r.full_name || r.fullName || 'UNNAMED',
-          passportNumber: r.passport_number || r.passportNumber || 'N/A',
+          fullName: r.full_name || 'UNNAMED',
+          passportNumber: r.passport_number || 'N/A',
           dob: r.dob || '',
-          company_name: r.company_name || r.sponsorCompany || '',
-          type: (r.type || r.application_type) as DocType,
+          company_name: r.company_name || '',
+          type: (r.type) as DocType,
           status: r.status || 'Verified',
-          issueDate: r.issue_date || r.issueDate || '',
-          expiryDate: r.expiry_date || r.expiryDate || '',
-          file_url: r.file_url || r.fileUrl || '',
-          pdfUrl: r.file_url || r.fileUrl || '',
+          issueDate: r.issue_date || '',
+          expiryDate: r.expiry_date || '',
+          file_url: r.file_url || '',
+          pdfUrl: r.file_url || '',
           nationality: r.nationality || '',
           email: r.email || '',
           phone: r.phone || '',
-          sponsorCompany: r.company_name || r.sponsorCompany,
-          jobTitle: r.job_title || r.jobTitle || '',
-          vietnamAddress: r.vietnam_address || r.vietnamAddress || ''
+          sponsorCompany: r.company_name,
+          jobTitle: r.job_title || '',
+          vietnamAddress: r.vietnam_address || ''
         }));
         setRecords(mappedRecords);
       }
@@ -213,7 +213,14 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addRecord = async (record: OfficialRecord) => {
-    const { error } = await supabase.from('records').insert([record]);
+    // এখানেও snake_case ব্যবহার করা উচিত যদি আপনি সরাসরি এই ফাংশন ব্যবহার করেন
+    const payload = {
+      full_name: record.fullName,
+      passport_number: record.passportNumber,
+      file_url: record.file_url,
+      // ... অন্য সব কলাম
+    };
+    const { error } = await supabase.from('records').insert([payload]);
     if (error) throw error;
     await refreshAllData();
   };
